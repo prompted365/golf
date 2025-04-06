@@ -3,30 +3,36 @@ from typing import Dict, List, Optional, Any
 
 @dataclass
 class AccessRequest:
-    """A request for access to a resource."""
-    action: str                         # The action being performed (e.g., "read", "write")
-    resource: str                       # The resource being accessed (e.g., "documents/123")
-    context: Dict[str, Any] = field(default_factory=dict)  # Additional context for the request
+    """Represents a request to access a specific resource."""
+    action: str                               # e.g. 'read', 'write', 'delete'
+    resource: str                             # e.g. 'documents/123'
+    context: Dict[str, Any] = field(default_factory=dict)  # e.g. {'tenant': 'abc', 'env': 'prod'}
+    scope: Optional[str] = None               # Optional scope identifier
+
+@dataclass
+class PermissionRule:
+    """Defines a permission rule that can be checked against access requests."""
+    action: str                               # e.g. 'documents:read', 'users:invite'
+    resource_pattern: str                     # e.g. 'documents/*', 'users/*'
+    conditions: Optional[Dict[str, Any]] = None  # ABAC-style conditions (optional)
+    description: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class Role:
-    """A role with associated permissions."""
-    name: str                           # The name of the role (e.g., "admin", "user")
-    permissions: List[str] = field(default_factory=list)  # List of permission patterns
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
-
-@dataclass
-class Permission:
-    """A permission pattern."""
-    pattern: str                        # The permission pattern (e.g., "documents:read:*")
-    description: Optional[str] = None   # Optional description of the permission
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
+    """Groups multiple permission rules under a named identity."""
+    name: str
+    rules: List[PermissionRule] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class AccessResult:
     """The result of an access check."""
-    allowed: bool                       # Whether access is allowed
-    role: Optional[str] = None          # The role that granted access, if any
-    permission: Optional[str] = None    # The permission that granted access, if any
-    reason: Optional[str] = None        # The reason for the decision
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata 
+    allowed: bool                             # Final access decision
+    matched_role: Optional[str] = None        # Role that granted access (if any)
+    matched_rule: Optional[PermissionRule] = None  # Permission rule that matched (if any)
+    reason: Optional[str] = None              # The reason for the decision
+    metadata: Dict[str, Any] = field(default_factory=lambda: {
+        "policy_version": None,               # Version or hash of policy/rules evaluated
+        "request_id": None,                   # Unique identifier of the request (for tracing)
+    }) 
