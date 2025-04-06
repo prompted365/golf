@@ -1,9 +1,9 @@
-from typing import Any, Dict, List, Optional, Set, Type
+from typing import Any, Dict, List, Optional, Set
 from pydantic import BaseModel, Field
 import asyncio
 
 from .context import ModuleContext, ModuleResult
-from .module import Module, ModuleConfig, ModuleMetadata
+from .module import Module
 from .exceptions import (
     PipelineError, ModuleError, DependencyError, 
     ModuleNotFoundError, ConfigurationError,

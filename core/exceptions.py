@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Optional
 from .context import ModuleContext
 
 class AuthedError(Exception):
