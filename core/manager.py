@@ -12,10 +12,10 @@ from .exceptions import (
 
 class PipelineConfig(BaseModel):
     """Configuration for the authentication pipeline."""
-    enable_identity: bool = True
-    enable_permissions: bool = True
-    enable_credentials: bool = True
-    enable_audit: bool = True
+    identity: bool = True
+    permissions: bool = True
+    credentials: bool = True
+    audit: bool = True
     fail_fast: bool = True
     parallel_execution: bool = False
     module_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
@@ -127,13 +127,13 @@ class AuthedManager:
     def _is_module_enabled(self, module_name: str) -> bool:
         """Check if a module is enabled based on configuration."""
         if module_name == self.IDENTITY_MODULE:
-            return self.config.enable_identity
+            return self.config.identity
         elif module_name == self.PERMISSIONS_MODULE:
-            return self.config.enable_permissions
+            return self.config.permissions
         elif module_name == self.CREDENTIALS_MODULE:
-            return self.config.enable_credentials
+            return self.config.credentials
         elif module_name == self.AUDIT_MODULE:
-            return self.config.enable_audit
+            return self.config.audit
         # For custom modules, assume enabled
         return True
     
