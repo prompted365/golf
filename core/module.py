@@ -1,6 +1,8 @@
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable, Type, TypeVar, Generic
 from pydantic import BaseModel, Field
 from .context import ModuleContext, ModuleResult
+
+T = TypeVar('T', bound=BaseModel)
 
 class ModuleMetadata(BaseModel):
     """Metadata for a module."""
@@ -10,9 +12,10 @@ class ModuleMetadata(BaseModel):
     dependencies: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
 
-class ModuleConfig(BaseModel):
+class BaseModuleConfig(BaseModel):
     """Base configuration for a module."""
     enabled: bool = True
+    # The module should define its own config class extending this
 
 @runtime_checkable
 class Module(Protocol):
@@ -27,23 +30,45 @@ class Module(Protocol):
         """Process the context and return a result."""
         ...
     
-    def configure(self, config: Dict[str, Any]) -> None:
-        """Configure the module with settings."""
+    def configure(self, config: BaseModel) -> None:
+        """Configure the module with settings.
+        
+        Args:
+            config: Module-specific configuration object
+        """
+        ...
+    
+    @property
+    def config_model(self) -> Type[BaseModel]:
+        """Get the configuration model class for this module."""
         ...
 
-class BaseModule:
+class BaseModule(Generic[T]):
     """Base implementation of a module."""
     
-    def __init__(self, metadata: Optional[ModuleMetadata] = None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, 
+        *,
+        metadata: Optional[ModuleMetadata] = None, 
+        config: Optional[T] = None
+    ):
         self._metadata = metadata or self._get_default_metadata()
-        self._config = {}
-        if config:
-            self.configure(config)
+        self._config = config or self._get_default_config()
     
     @property
     def metadata(self) -> ModuleMetadata:
         """Get module metadata."""
         return self._metadata
+    
+    @property
+    def config(self) -> T:
+        """Get the current configuration."""
+        return self._config
+    
+    @property
+    def config_model(self) -> Type[T]:
+        """Get the configuration model class for this module."""
+        raise NotImplementedError("Subclasses must implement config_model property")
     
     def _get_default_metadata(self) -> ModuleMetadata:
         """Get default metadata for this module."""
@@ -52,10 +77,19 @@ class BaseModule:
             description=self.__class__.__doc__ or "No description"
         )
     
-    def configure(self, config: Dict[str, Any]) -> None:
+    def _get_default_config(self) -> T:
+        """Get default configuration for this module."""
+        return self.config_model()
+    
+    def configure(self, config: T) -> None:
         """Configure the module with settings."""
-        self._config.update(config)
+        if not isinstance(config, self.config_model):
+            raise TypeError(f"Expected {self.config_model.__name__}, got {type(config).__name__}")
+        self._config = config
     
     async def process(self, context: ModuleContext) -> ModuleResult:
-        """Process the context and return a result."""
+        """Process the context and return a result.
+        
+        This method should be overridden by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement process()") 

@@ -16,9 +16,6 @@ class PipelineConfig(BaseModel):
     permissions: bool = True
     credentials: bool = True
     audit: bool = True
-    fail_fast: bool = True
-    parallel_execution: bool = False
-    module_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
 class AuthedManager:
     """Orchestrates the authentication and authorization pipeline."""
@@ -62,11 +59,6 @@ class AuthedManager:
             raise ConfigurationError(f"Module {module.metadata.name} is already registered")
         
         self.modules[module.metadata.name] = module
-        
-        # Configure from global settings if available
-        if module.metadata.name in self.config.module_configs:
-            module.configure(self.config.module_configs[module.metadata.name])
-        
         return self
     
     def _resolve_dependencies(self) -> List[str]:
@@ -195,54 +187,27 @@ class AuthedManager:
         # Get execution order
         execution_order = self._get_execution_order()
         
-        # If parallel execution is enabled, run modules in parallel
-        if self.config.parallel_execution:
-            # Create tasks for all modules
-            tasks = [
-                self._process_module(module_name, context)
-                for module_name in execution_order
-                if self._is_module_enabled(module_name)
-            ]
-            
-            # Run all tasks
-            try:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            # Process each module in order
+            for module_name in execution_order:
+                if not self._is_module_enabled(module_name):
+                    continue
                 
-                # Process results
-                for i, result in enumerate(results):
-                    if isinstance(result, Exception):
-                        if self.config.fail_fast:
-                            raise result
-                    else:
-                        context = context.with_result(result)
+                result = await self._process_module(module_name, context)
                 
-                return context
-            except Exception as e:
-                raise PipelineError(str(e), context)
-        
-        # Sequential execution
-        else:
-            try:
-                # Process each module in order
-                for module_name in execution_order:
-                    if not self._is_module_enabled(module_name):
-                        continue
-                    
-                    result = await self._process_module(module_name, context)
-                    
-                    # If module failed and we're in fail-fast mode, exit early
-                    if not result.success and self.config.fail_fast:
-                        error_msg = result.error or f"Module {module_name} failed"
-                        error = ModuleError(module_name, error_msg, context)
-                        raise error
-                    
+                # If module failed, let the module decide whether to continue
+                # by returning success=False or raising an exception
+                if not result.success:
+                    # Still update context with result data
+                    context = context.with_result(result)
+                else:
                     # Update context with result data
                     context = context.with_result(result)
-                
-                return context
-            except PipelineError:
-                # Re-raise pipeline errors
-                raise
-            except Exception as e:
-                # Wrap other exceptions
-                raise PipelineError(str(e), context) 
+            
+            return context
+        except PipelineError:
+            # Re-raise pipeline errors
+            raise
+        except Exception as e:
+            # Wrap other exceptions
+            raise PipelineError(str(e), context) 

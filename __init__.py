@@ -2,7 +2,7 @@
 
 from .core import (
     AuthedManager, PipelineConfig, 
-    Module, BaseModule, ModuleMetadata, ModuleConfig,
+    Module, BaseModule, ModuleMetadata, BaseModuleConfig,
     ModuleContext, ModuleResult,
     AuthedError, PipelineError, ModuleError
 )
@@ -17,7 +17,7 @@ __all__ = [
     "Module",
     "BaseModule",
     "ModuleMetadata",
-    "ModuleConfig",
+    "BaseModuleConfig",
     "ModuleContext",
     "ModuleResult",
     "AuthedError",

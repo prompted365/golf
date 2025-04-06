@@ -1,5 +1,5 @@
 from .context import ModuleContext, ModuleResult
-from .module import Module, BaseModule, ModuleMetadata, ModuleConfig
+from .module import Module, BaseModule, ModuleMetadata, BaseModuleConfig
 from .manager import AuthedManager, PipelineConfig
 from .exceptions import (
     AuthedError, PipelineError, ModuleError,
@@ -16,7 +16,7 @@ __all__ = [
     "Module",
     "BaseModule",
     "ModuleMetadata",
-    "ModuleConfig",
+    "BaseModuleConfig",
     
     # Manager
     "AuthedManager",
