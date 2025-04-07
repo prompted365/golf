@@ -24,14 +24,6 @@ class ConfigurationError(AuthedError):
     """Error during configuration."""
     pass
 
-class DependencyError(AuthedError):
-    """Error during dependency resolution."""
-    
-    def __init__(self, module: str, dependency: str):
-        self.module = module
-        self.dependency = dependency
-        super().__init__(f"Module {module} depends on {dependency}, but it is not available")
-
 class ModuleNotRegistered(AuthedError):
     """Error when a required module is not registered."""
     

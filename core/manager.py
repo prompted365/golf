@@ -1,11 +1,11 @@
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from contextlib import contextmanager
 
 from .context import ModuleContext, ModuleResult
 from .module import Module
 from .exceptions import (
-    PipelineError, ModuleError, DependencyError, 
+    PipelineError, ModuleError,
     ModuleNotRegistered, ConfigurationError,
     IdentityError, PermissionValidation, CredentialError, AuditError,
     ShutdownError
@@ -78,10 +78,7 @@ class AuthedManager:
             module: Module = self.modules[module_name]
             await self.lifecycle_manager.start_module(
                 module_name=module_name,
-                module=module,
-                metadata={
-                    "dependencies": module.metadata.dependencies
-                }
+                module=module
             )
     
     async def stop(self) -> None:
@@ -129,28 +126,11 @@ class AuthedManager:
         """
         return self.lifecycle_manager.get_module_events(module_name)
     
-    def _resolve_dependencies(self) -> List[str]:
-        """Resolve module dependencies and determine execution order."""
-        if not self.modules:
-            return []
-        
-        # Start with default execution order for standard modules
-        default_modules = [
-            m for m in self.DEFAULT_EXECUTION_ORDER 
-            if m in self.modules and self._is_module_enabled(m)
-        ]
-        
-        # Return combined list with standard modules first, then custom modules
-        return default_modules
-    
     def _get_execution_order(self) -> List[str]:
         """Get the module execution order based on config and dependencies."""
         # If order is cached, return it
         if self._execution_order:
             return self._execution_order
-        
-        # Try to order by dependencies
-        self._execution_order = self._resolve_dependencies()
         
         # If no modules, use default order with enabled modules
         if not self._execution_order:

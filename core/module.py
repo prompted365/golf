@@ -9,7 +9,6 @@ class ModuleMetadata(BaseModel):
     name: str
     version: str = "0.1.0"
     description: Optional[str] = None
-    dependencies: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
 
 class BaseModuleConfig(BaseModel):
