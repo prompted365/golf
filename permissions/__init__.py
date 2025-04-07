@@ -1,14 +1,13 @@
-from .base import PermissionStore
-from .models import AccessRequest, AccessResult, Role, Permission
+from .base import PermissionResolver
+from .models import PermissionRule, Role, PermissionResult
 
 __all__ = [
     # Base interfaces
-    "PermissionStore",
+    "PermissionResolver",
     
     # Models
-    "AccessRequest",
-    "AccessResult",
+    "PermissionRule",
     "Role",
-    "Permission",
+    "PermissionResult",
 ]
 
