@@ -231,18 +231,18 @@ class AuthedManager:
             result = await module.process(context)
             return result
         except Exception as e:
-            # Convert to appropriate error type
+            # Convert to appropriate error type with exception chaining
             error_msg = str(e)
             if module_name == self.IDENTITY_MODULE:
-                raise IdentityError(error_msg, context)
+                raise IdentityError(error_msg, context) from e
             elif module_name == self.PERMISSIONS_MODULE:
-                raise PermissionError(error_msg, context)
+                raise PermissionError(error_msg, context) from e
             elif module_name == self.CREDENTIALS_MODULE:
-                raise CredentialError(error_msg, context)
+                raise CredentialError(error_msg, context) from e
             elif module_name == self.AUDIT_MODULE:
-                raise AuditError(error_msg, context)
+                raise AuditError(error_msg, context) from e
             else:
-                raise ModuleError(module_name, error_msg, context)
+                raise ModuleError(module_name, error_msg, context) from e
     
     async def process_request(self, request: Any) -> ModuleContext:
         """Process a request through the authentication pipeline.
