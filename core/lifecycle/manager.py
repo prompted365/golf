@@ -40,6 +40,7 @@ class ModuleLifecycleManager:
                 event = ModuleLifecycleEvent(
                     module=module_name,
                     state=ModuleState.STARTING,
+                    timestamp=datetime.now(),
                     metadata=metadata or {}
                 )
                 self.events[module_name].append(event)
@@ -53,6 +54,7 @@ class ModuleLifecycleManager:
                 event = ModuleLifecycleEvent(
                     module=module_name,
                     state=ModuleState.RUNNING,
+                    timestamp=datetime.now(),
                     metadata=metadata or {}
                 )
                 self.events[module_name].append(event)
