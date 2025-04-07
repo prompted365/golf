@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from ..identity.models import AgentIdentity
+from identity.models import AgentIdentity
 from .models import Credential, CredentialRequest, CredentialResult
 from core.exceptions import CredentialError
 
