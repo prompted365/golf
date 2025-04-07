@@ -34,15 +34,16 @@ class AuditEventType(str, Enum):
     CUSTOM = "custom"                              # Custom event type
 
 class AuditEvent(BaseModel):
-    """An individual audit event with its data and timestamp."""
-    event_type: AuditEventType
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    """Represents a single audit event."""
+    type: AuditEventType
+    timestamp: datetime
     attributes: Dict[str, Any] = Field(default_factory=dict)
-
-    class Config:
-        json_encoders = {
+    
+    model_config = {
+        "json_encoders": {
             datetime: lambda dt: dt.isoformat()
         }
+    }
 
 class AuditContext(BaseModel):
     """
@@ -72,35 +73,36 @@ class AuditContext(BaseModel):
         }
 
 class AuditRecord(BaseModel):
-    """
-    Complete record of an audit session, including all events and final state.
-    This is what gets persisted to the audit log.
-    """
-    run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    """Represents an audit record containing multiple events."""
+    started_at: datetime
     ended_at: Optional[datetime] = None
-
-    # Core request information
+    run_id: Optional[str] = None
     identity_id: Optional[str] = None
     resource: Optional[str] = None
     action: Optional[str] = None
     client_ip: Optional[str] = None
     user_agent: Optional[str] = None
-
-    # Module completion status
+    
+    # Module-specific flags
     identity_resolved: Optional[bool] = None
     permission_checked: Optional[bool] = None
     credential_resolved: Optional[bool] = None
-
-    # Final state
+    
+    # Result
     success: Optional[bool] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
     error_module: Optional[str] = None
-
+    
     # Events and metadata
     events: List[AuditEvent] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    model_config = {
+        "json_encoders": {
+            datetime: lambda dt: dt.isoformat()
+        }
+    }
 
     def add_event(self, event_type: AuditEventType, attributes: Optional[Dict[str, Any]] = None) -> None:
         """Add an event to the record.
@@ -110,7 +112,7 @@ class AuditRecord(BaseModel):
             attributes: Optional event attributes
         """
         event = AuditEvent(
-            event_type=event_type,
+            type=event_type,
             timestamp=datetime.now(),
             attributes=attributes or {}
         )
@@ -136,9 +138,4 @@ class AuditRecord(BaseModel):
                 "error_message": error_message,
                 "error_module": error_module
             }
-        )
-
-    class Config:
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat()
-        } 
+        ) 
