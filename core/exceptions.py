@@ -32,7 +32,7 @@ class DependencyError(AuthedError):
         self.dependency = dependency
         super().__init__(f"Module {module} depends on {dependency}, but it is not available")
 
-class ModuleNotRegisteredError(AuthedError):
+class ModuleNotRegistered(AuthedError):
     """Error when a required module is not registered."""
     
     def __init__(self, module_name: str):
@@ -45,7 +45,7 @@ class IdentityError(ModuleError):
     def __init__(self, error: str, context: Optional[ModuleContext] = None):
         super().__init__("identity", error, context)
 
-class PermissionValidationError(ModuleError):
+class PermissionValidation(ModuleError):
     """Raised when permission validation fails."""
     def __init__(self, error: str, context: Optional[ModuleContext] = None):
         super().__init__("permissions", error, context)
