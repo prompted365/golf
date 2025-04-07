@@ -35,6 +35,9 @@ class Module(Protocol[T]):
         
         Args:
             config: Module-specific configuration object
+            
+        Raises:
+            ValidationError: If the config fails validation
         """
         ...
     
@@ -43,7 +46,7 @@ class Module(Protocol[T]):
         """Get the configuration model class for this module."""
         ...
 
-class BaseModule(Generic[T]):
+class BaseModule(Generic[T], Module[T]):
     """Base implementation of a module."""
     
     def __init__(
@@ -60,10 +63,15 @@ class BaseModule(Generic[T]):
             
         Raises:
             TypeError: If config is not of the expected type T
+            ValidationError: If config fails validation
         """
         self._metadata = metadata or self._get_default_metadata()
-        if config is not None and not isinstance(config, self.config_model):
-            raise TypeError(f"Expected {self.config_model.__name__}, got {type(config).__name__}")
+        if config is not None:
+            # Validate config type and content
+            if not isinstance(config, self.config_model):
+                raise TypeError(f"Expected {self.config_model.__name__}, got {type(config).__name__}")
+            # Let Pydantic validate the config
+            self.config_model.model_validate(config.model_dump())
         self._config = config or self._get_default_config()
     
     @property
@@ -89,13 +97,33 @@ class BaseModule(Generic[T]):
         )
     
     def _get_default_config(self) -> T:
-        """Get default configuration for this module."""
-        return self.config_model()
+        """Get default configuration for this module.
+        
+        Returns:
+            A new instance of the config model with default values
+            
+        Raises:
+            ValidationError: If the default config fails validation
+        """
+        try:
+            return self.config_model()
+        except Exception as e:
+            raise ValueError(f"Failed to create default config: {str(e)}") from e
     
     def configure(self, config: T) -> None:
-        """Configure the module with settings."""
+        """Configure the module with settings.
+        
+        Args:
+            config: Module-specific configuration object
+            
+        Raises:
+            TypeError: If config is not of the expected type T
+            ValidationError: If config fails validation
+        """
         if not isinstance(config, self.config_model):
             raise TypeError(f"Expected {self.config_model.__name__}, got {type(config).__name__}")
+        # Let Pydantic validate the config
+        self.config_model.model_validate(config.model_dump())
         self._config = config
     
     async def process(self, context: ModuleContext) -> ModuleResult:
