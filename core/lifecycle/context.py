@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from contextlib import asynccontextmanager
 from .manager import ModuleLifecycleManager
 
@@ -7,7 +7,7 @@ async def module_lifecycle(
     manager: ModuleLifecycleManager,
     module_name: str,
     module: Any,
-    metadata: Optional[dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 ):
     """
     Context manager for module lifecycle management.
