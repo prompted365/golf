@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from ..identity.models import AgentIdentity
 from .models import Credential, CredentialRequest, CredentialResult
+from core.exceptions import CredentialError
 
 class CredentialResolver(ABC):
     @abstractmethod

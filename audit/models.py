@@ -103,16 +103,18 @@ class AuditRecord(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def add_event(self, event_type: AuditEventType, attributes: Optional[Dict[str, Any]] = None) -> None:
-        """Add an event to the audit record.
+        """Add an event to the record.
         
         Args:
             event_type: Type of event to add
             attributes: Optional event attributes
         """
-        self.events.append(AuditEvent(
+        event = AuditEvent(
             event_type=event_type,
+            timestamp=datetime.now(),
             attributes=attributes or {}
-        ))
+        )
+        self.events.append(event)
 
     def complete(self, success: bool, error_code: Optional[str] = None, 
                 error_message: Optional[str] = None, error_module: Optional[str] = None) -> None:
