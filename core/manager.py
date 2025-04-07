@@ -75,7 +75,7 @@ class AuthedManager:
             if not self._is_module_enabled(module_name):
                 continue
                 
-            module = self.modules[module_name]
+            module: Module = self.modules[module_name]
             await self.lifecycle_manager.start_module(
                 module_name=module_name,
                 module=module,
