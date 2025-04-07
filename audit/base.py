@@ -2,247 +2,118 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 
 from ..identity.models import AgentIdentity
-from .models import AuditEvent, AuditEventType
+from .models import AuditEventType, AuditRecord
 
 class AuditLogger(ABC):
     """Base class for audit loggers."""
     
     @abstractmethod
-    async def log_event(self, event: AuditEvent) -> None:
+    async def log_record(self, record: AuditRecord) -> None:
         """
-        Log an audit event.
+        Log a complete audit record.
         
         Parameters:
-            event: The audit event to log
+            record: The audit record to log
             
         Raises:
-            AuditError: If the event cannot be logged
+            AuditError: If the record cannot be logged
         """
         pass
     
     @abstractmethod
-    async def query_events(self, 
-                          start_time: Optional[str] = None, 
-                          end_time: Optional[str] = None, 
-                          event_type: Optional[AuditEventType] = None,
-                          agent_id: Optional[str] = None,
-                          resource: Optional[str] = None,
-                          action: Optional[str] = None,
-                          status: Optional[str] = None,
-                          limit: int = 100,
-                          offset: int = 0) -> List[AuditEvent]:
+    async def query_records(self, 
+                           start_time: Optional[str] = None, 
+                           end_time: Optional[str] = None, 
+                           run_id: Optional[str] = None,
+                           identity_id: Optional[str] = None,
+                           resource: Optional[str] = None,
+                           action: Optional[str] = None,
+                           success: Optional[bool] = None,
+                           error_code: Optional[str] = None,
+                           limit: int = 100,
+                           offset: int = 0) -> List[AuditRecord]:
         """
-        Query audit events with optional filters.
+        Query audit records with optional filters.
         
         Parameters:
             start_time: Optional ISO formatted start time filter
             end_time: Optional ISO formatted end time filter
-            event_type: Optional event type filter
-            agent_id: Optional agent ID filter
+            run_id: Optional run ID filter
+            identity_id: Optional identity ID filter
             resource: Optional resource filter
             action: Optional action filter
-            status: Optional status filter
-            limit: Maximum number of events to return
+            success: Optional success filter
+            error_code: Optional error code filter
+            limit: Maximum number of records to return
             offset: Offset for pagination
         
         Returns:
-            List of audit events matching the filters
+            List of audit records matching the filters
             
         Raises:
-            AuditError: If the events cannot be queried
+            AuditError: If the records cannot be queried
         """
         pass
     
-    async def log_authentication(self, 
-                               identity: Optional[AgentIdentity], 
-                               success: bool, 
-                               details: Dict[str, Any] = None,
-                               source_ip: Optional[str] = None,
-                               user_agent: Optional[str] = None) -> None:
+    def create_record(self, 
+                     resource_accessed: Optional[str] = None,
+                     action_requested: Optional[str] = None,
+                     metadata: Optional[Dict[str, Any]] = None) -> AuditRecord:
         """
-        Log an authentication event.
+        Create a new audit record.
         
         Parameters:
-            identity: The agent identity, if authentication was successful
-            success: Whether authentication was successful
-            details: Additional details about the authentication
-            source_ip: Source IP address
-            user_agent: User agent string
+            resource_accessed: The resource being accessed
+            action_requested: The action being performed
+            metadata: Additional execution-wide metadata
             
-        Raises:
-            AuditError: If the event cannot be logged
+        Returns:
+            AuditRecord: A new audit record
         """
-        from uuid import uuid4
-        
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.AUTHENTICATION,
-            agent_id=identity.id if identity else None,
-            action="authenticate",
-            resource=None,
-            status="success" if success else "failure",
-            details=details or {},
-            source_ip=source_ip,
-            user_agent=user_agent
+        record = AuditRecord(
+            resource_accessed=resource_accessed,
+            action_requested=action_requested,
+            metadata=metadata or {}
         )
-        
-        await self.log_event(event)
+        return record
     
-    async def log_authorization(self,
-                              identity: AgentIdentity,
-                              action: str,
-                              resource: str,
-                              success: bool,
-                              details: Dict[str, Any] = None) -> None:
+    async def log_event(self,
+                        record: AuditRecord,
+                        event_type: str,
+                        data: Optional[Dict[str, Any]] = None,
+                        **kwargs) -> None:
         """
-        Log an authorization event.
+        Log an event to the audit record.
+        
+        This is the primary method to add any type of event to an audit record.
         
         Parameters:
-            identity: The agent identity requesting authorization
-            action: The action being authorized
-            resource: The resource being accessed
-            success: Whether authorization was successful
-            details: Additional details about the authorization
-            
-        Raises:
-            AuditError: If the event cannot be logged
+            record: The audit record to add the event to
+            event_type: The type of event (can be from AuditEventType or a custom string)
+            data: Event-specific data
+            **kwargs: Any key-value pairs to include in the event data
         """
-        from uuid import uuid4
+        # Combine data dict and kwargs
+        event_data = data or {}
+        event_data.update(kwargs)
         
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.AUTHORIZATION,
-            agent_id=identity.id,
-            action=action,
-            resource=resource,
-            status="success" if success else "failure",
-            details=details or {}
-        )
+        # Handle special fields that should also update the record
+        if event_type == AuditEventType.REQUEST_STARTED:
+            if "resource" in event_data and record.resource_accessed is None:
+                record.resource_accessed = event_data["resource"]
+            if "action" in event_data and record.action_requested is None:
+                record.action_requested = event_data["action"]
+            if "client_ip" in event_data and record.client_ip is None:
+                record.client_ip = event_data["client_ip"]
+            if "user_agent" in event_data and record.user_agent is None:
+                record.user_agent = event_data["user_agent"]
         
-        await self.log_event(event)
-    
-    async def log_credential_access(self,
-                                  identity: AgentIdentity,
-                                  credential_id: str,
-                                  action: str,
-                                  success: bool,
-                                  details: Dict[str, Any] = None) -> None:
-        """
-        Log a credential access event.
+        # Handle the identity object if provided
+        if "identity" in event_data and hasattr(event_data["identity"], "id"):
+            identity = event_data["identity"]
+            event_data["identity_id"] = identity.id
+            # Remove the full identity object to avoid serialization issues
+            event_data.pop("identity", None)
         
-        Parameters:
-            identity: The agent identity accessing the credential
-            credential_id: The ID of the credential being accessed
-            action: The action being performed (e.g., "retrieve", "list")
-            success: Whether access was successful
-            details: Additional details about the access
-            
-        Raises:
-            AuditError: If the event cannot be logged
-        """
-        from uuid import uuid4
-        
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.CREDENTIAL_ACCESS,
-            agent_id=identity.id,
-            action=action,
-            resource=f"credential:{credential_id}",
-            status="success" if success else "failure",
-            details=details or {}
-        )
-        
-        await self.log_event(event)
-    
-    async def log_credential_modify(self,
-                                  identity: AgentIdentity,
-                                  credential_id: str,
-                                  action: str,
-                                  success: bool,
-                                  details: Dict[str, Any] = None) -> None:
-        """
-        Log a credential modification event.
-        
-        Parameters:
-            identity: The agent identity modifying the credential
-            credential_id: The ID of the credential being modified
-            action: The action being performed (e.g., "create", "update", "revoke")
-            success: Whether modification was successful
-            details: Additional details about the modification
-            
-        Raises:
-            AuditError: If the event cannot be logged
-        """
-        from uuid import uuid4
-        
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.CREDENTIAL_MODIFY,
-            agent_id=identity.id,
-            action=action,
-            resource=f"credential:{credential_id}",
-            status="success" if success else "failure",
-            details=details or {}
-        )
-        
-        await self.log_event(event)
-    
-    async def log_system_event(self,
-                             action: str,
-                             success: bool,
-                             details: Dict[str, Any] = None) -> None:
-        """
-        Log a system event.
-        
-        Parameters:
-            action: The system action being performed
-            success: Whether the action was successful
-            details: Additional details about the system event
-            
-        Raises:
-            AuditError: If the event cannot be logged
-        """
-        from uuid import uuid4
-        
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.SYSTEM,
-            action=action,
-            status="success" if success else "failure",
-            details=details or {}
-        )
-        
-        await self.log_event(event)
-    
-    async def log_custom_event(self,
-                             action: str,
-                             agent_id: Optional[str] = None,
-                             resource: Optional[str] = None,
-                             status: str = "info",
-                             details: Dict[str, Any] = None) -> None:
-        """
-        Log a custom event.
-        
-        Parameters:
-            action: The custom action
-            agent_id: Optional agent ID related to the event
-            resource: Optional resource related to the event
-            status: Status of the event
-            details: Additional details about the event
-            
-        Raises:
-            AuditError: If the event cannot be logged
-        """
-        from uuid import uuid4
-        
-        event = AuditEvent(
-            id=str(uuid4()),
-            event_type=AuditEventType.CUSTOM,
-            agent_id=agent_id,
-            action=action,
-            resource=resource,
-            status=status,
-            details=details or {}
-        )
-        
-        await self.log_event(event) 
+        # Add the event to the record (which will handle module-specific data)
+        record.add_event(event_type, event_data)
