@@ -7,7 +7,7 @@ from .module import Module
 from .exceptions import (
     PipelineError, ModuleError, DependencyError, 
     ModuleNotFoundError, ConfigurationError,
-    IdentityError, PermissionError, CredentialError, AuditError,
+    IdentityError, PermissionValidationError, CredentialError, AuditError,
     ShutdownError
 )
 from .lifecycle import ModuleLifecycleManager, ModuleState, ModuleLifecycleEvent
@@ -236,7 +236,7 @@ class AuthedManager:
             if module_name == self.IDENTITY_MODULE:
                 raise IdentityError(error_msg, context) from e
             elif module_name == self.PERMISSIONS_MODULE:
-                raise PermissionError(error_msg, context) from e
+                raise PermissionValidationError(error_msg, context) from e
             elif module_name == self.CREDENTIALS_MODULE:
                 raise CredentialError(error_msg, context) from e
             elif module_name == self.AUDIT_MODULE:

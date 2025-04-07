@@ -18,7 +18,7 @@ class PermissionStore(ABC):
             AccessResult: The access checking result
 
         Raises:
-            PermissionError: If permission checking fails
+            PermissionValidationError: If permission checking fails
         """
         ...
     
@@ -34,7 +34,7 @@ class PermissionStore(ABC):
             List[Role]: The roles associated with the agent
 
         Raises:
-            PermissionError: If role retrieval fails
+            PermissionValidationError: If role retrieval fails
         """
         ...
     
@@ -51,7 +51,7 @@ class PermissionStore(ABC):
             bool: True if the agent has the role, False otherwise
 
         Raises:
-            PermissionError: If role checking fails
+            PermissionValidationError: If role checking fails
         """
         ...
     
@@ -67,7 +67,7 @@ class PermissionStore(ABC):
             List[PermissionRule]: The permission rules
 
         Raises:
-            PermissionError: If rule listing fails
+            PermissionValidationError: If rule listing fails
         """
         ...
     
@@ -80,7 +80,7 @@ class PermissionStore(ABC):
             role: The role to add or update
 
         Raises:
-            PermissionError: If role addition fails
+            PermissionValidationError: If role addition fails
         """
         ...
     
@@ -96,6 +96,6 @@ class PermissionStore(ABC):
             bool: True if the role was removed, False if it didn't exist
 
         Raises:
-            PermissionError: If role removal fails
+            PermissionValidationError: If role removal fails
         """
         ... 

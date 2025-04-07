@@ -45,9 +45,8 @@ class IdentityError(ModuleError):
     def __init__(self, error: str, context: Optional[ModuleContext] = None):
         super().__init__("identity", error, context)
 
-class PermissionError(ModuleError):
-    """Error during permission checking."""
-    
+class PermissionValidationError(ModuleError):
+    """Raised when permission validation fails."""
     def __init__(self, error: str, context: Optional[ModuleContext] = None):
         super().__init__("permissions", error, context)
 
