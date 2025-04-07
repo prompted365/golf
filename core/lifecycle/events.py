@@ -22,5 +22,10 @@ class ModuleLifecycleEvent(BaseModel):
 
     class Config:
         json_encoders = {
-            datetime: lambda dt: dt.isoformat()
-        } 
+            datetime: lambda dt: dt.isoformat(),
+            Enum: lambda e: e.value,
+            set: lambda s: list(s),
+            frozenset: lambda s: list(s),
+            bytes: lambda b: b.decode('utf-8', errors='replace'),
+            BaseModel: lambda m: m.dict()
+        }

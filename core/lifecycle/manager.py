@@ -3,6 +3,7 @@ from .events import ModuleState, ModuleLifecycleEvent
 from audit.base import AuditLogger
 from audit.models import AuditContext
 from datetime import datetime
+from ..exceptions import ModuleNotRegisteredError
 
 class ModuleLifecycleManager:
     """
@@ -77,7 +78,7 @@ class ModuleLifecycleManager:
     async def stop_module(self, module_name: str, error: Optional[str] = None) -> None:
         """Stop a module and record the event."""
         if module_name not in self.contexts:
-            raise ModuleNotFoundError(module_name)
+            raise ModuleNotRegisteredError(module_name)
             
         context = self.contexts[module_name]
         

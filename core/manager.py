@@ -6,7 +6,7 @@ from .context import ModuleContext, ModuleResult
 from .module import Module
 from .exceptions import (
     PipelineError, ModuleError, DependencyError, 
-    ModuleNotFoundError, ConfigurationError,
+    ModuleNotRegisteredError, ConfigurationError,
     IdentityError, PermissionValidationError, CredentialError, AuditError,
     ShutdownError
 )
@@ -216,11 +216,11 @@ class AuthedManager:
             Module result
             
         Raises:
-            ModuleNotFoundError: If the module is not found
+            ModuleNotRegisteredError: If the module is not registered
             ModuleError: If the module execution fails
         """
         if module_name not in self.modules:
-            raise ModuleNotFoundError(module_name)
+            raise ModuleNotRegisteredError(module_name)
         
         if not self.is_module_running(module_name):
             raise ModuleError(module_name, "Module is not running", context)
