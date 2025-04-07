@@ -6,8 +6,8 @@ from .context import ModuleContext, ModuleResult
 from .module import Module
 from .exceptions import (
     PipelineError, ModuleError, DependencyError, 
-    ModuleNotRegisteredError, ConfigurationError,
-    IdentityError, PermissionValidationError, CredentialError, AuditError,
+    ModuleNotRegistered, ConfigurationError,
+    IdentityError, PermissionValidation, CredentialError, AuditError,
     ShutdownError
 )
 from .lifecycle import ModuleLifecycleManager, ModuleState, ModuleLifecycleEvent
@@ -216,11 +216,11 @@ class AuthedManager:
             Module result
             
         Raises:
-            ModuleNotRegisteredError: If the module is not registered
+            ModuleNotRegistered: If the module is not registered
             ModuleError: If the module execution fails
         """
         if module_name not in self.modules:
-            raise ModuleNotRegisteredError(module_name)
+            raise ModuleNotRegistered(module_name)
         
         if not self.is_module_running(module_name):
             raise ModuleError(module_name, "Module is not running", context)
@@ -236,7 +236,7 @@ class AuthedManager:
             if module_name == self.IDENTITY_MODULE:
                 raise IdentityError(error_msg, context) from e
             elif module_name == self.PERMISSIONS_MODULE:
-                raise PermissionValidationError(error_msg, context) from e
+                raise PermissionValidation(error_msg, context) from e
             elif module_name == self.CREDENTIALS_MODULE:
                 raise CredentialError(error_msg, context) from e
             elif module_name == self.AUDIT_MODULE:
