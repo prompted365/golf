@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from .models import AuditContext, AuditRecord, AuditEventType
-from ..core.exceptions import AuditError
 
 class AuditLogger(ABC):
     """
