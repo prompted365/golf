@@ -52,7 +52,18 @@ class BaseModule(Generic[T]):
         metadata: Optional[ModuleMetadata] = None, 
         config: Optional[T] = None
     ):
+        """Initialize the module.
+        
+        Args:
+            metadata: Optional module metadata
+            config: Optional module configuration. Must be of type T.
+            
+        Raises:
+            TypeError: If config is not of the expected type T
+        """
         self._metadata = metadata or self._get_default_metadata()
+        if config is not None and not isinstance(config, self.config_model):
+            raise TypeError(f"Expected {self.config_model.__name__}, got {type(config).__name__}")
         self._config = config or self._get_default_config()
     
     @property
