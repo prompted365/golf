@@ -225,8 +225,8 @@ class AuthedManager:
         else:
             context.metadata["request_type"] = type(request).__name__
         
-        # Initialize audit context for the pipeline execution
-        run_id = str(uuid.uuid4())
+        # Initialize audit context for the pipeline execution using the context's run_id
+        run_id = context.run_id  # Use the existing run_id from the context
         resource = context.metadata.get("resource", "unknown")
         action = context.metadata.get("action", "unknown")
         
@@ -317,7 +317,7 @@ class AuthedManager:
             await self.lifecycle_manager.audit_logger.log_event(
                 audit_context,
                 AuditEventType.PIPELINE_ERROR,
-                {"error": str(e), "error_type": "PipelineError"}
+                {"error": str(e), "error_type": "PipelineError", "module": error_module if error_module else "pipeline"}
             )
             
             # Finalize the audit context with error information
@@ -335,7 +335,7 @@ class AuthedManager:
             await self.lifecycle_manager.audit_logger.log_event(
                 audit_context,
                 AuditEventType.MODULE_ERROR,
-                {"error": str(e), "error_type": type(e).__name__}
+                {"error": str(e), "error_type": type(e).__name__, "module": error_module if error_module else "unknown"}
             )
             
             # Finalize the audit context with error information
