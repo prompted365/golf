@@ -1,18 +1,36 @@
 from typing import Dict, List, Optional, Any
 import time
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 class Credential(BaseModel):
     """Represents a credential that can be used to access external resources."""
     id: str                                  # Unique ID for the credential
     type: str                                # Type of credential (e.g., "api_key", "oauth_token")
-    value: str                               # The actual credential value/secret
+    value: SecretStr                         # The actual credential value/secret
     owner_id: Optional[str] = None           # ID of the owner (agent, user, or service)
     scopes: List[str] = Field(default_factory=list)  # Scopes or permissions associated with this credential
     expires_at: Optional[float] = None       # Expiration timestamp (or None if no expiration)
     created_at: float = Field(default_factory=time.time)  # Creation timestamp
     metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata
 
+    def __str__(self) -> str:
+        """String representation that hides sensitive data."""
+        return f"Credential(id={self.id}, type={self.type}, owner_id={self.owner_id})"
+
+    def __repr__(self) -> str:
+        """Representation that hides sensitive data."""
+        return f"Credential(id={self.id}, type={self.type}, owner_id={self.owner_id})"
+
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+        """Override dict() to exclude sensitive data."""
+        d = self.model_dump(*args, **kwargs)
+        d['value'] = '********'  # Replace sensitive value with asterisks
+        return d
+
+    def json(self, *args, **kwargs) -> str:
+        """Override json() to exclude sensitive data."""
+        d = self.dict(*args, **kwargs)
+        return self.model_dump_json(**kwargs)
 
 class CredentialRequest(BaseModel):
     """Represents a request for a credential."""
