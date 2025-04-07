@@ -10,5 +10,5 @@ __all__ = [
     
     # Models
     "Credential",
-    "CredentialRequest"
+    "CredentialRequest",
 ]

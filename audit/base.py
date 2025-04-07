@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
-from .models import AuditContext, AuditRecord
 from datetime import datetime
+from .models import AuditContext, AuditRecord, AuditEventType
+from ..core.exceptions import AuditError
 
 class AuditLogger(ABC):
     """
@@ -37,7 +38,7 @@ class AuditLogger(ABC):
     async def log_event(
         self,
         context: AuditContext,
-        event_type: str,
+        event_type: AuditEventType,
         attributes: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
@@ -45,7 +46,7 @@ class AuditLogger(ABC):
         
         Parameters:
             context: The audit context this event belongs to
-            event_type: Type of event (from AuditEventType or custom string)
+            event_type: Type of event from AuditEventType enum
             attributes: Optional event-specific attributes
         """
         pass
@@ -69,8 +70,8 @@ class AuditLogger(ABC):
 
     @abstractmethod
     async def query_records(self, 
-                           start_time: Optional[str] = None, 
-                           end_time: Optional[str] = None, 
+                           start_time: Optional[datetime] = None, 
+                           end_time: Optional[datetime] = None, 
                            run_id: Optional[str] = None,
                            identity_id: Optional[str] = None,
                            resource: Optional[str] = None,
@@ -83,8 +84,8 @@ class AuditLogger(ABC):
         Query audit records with optional filters.
         
         Parameters:
-            start_time: Optional ISO formatted start time filter
-            end_time: Optional ISO formatted end time filter
+            start_time: Optional start time filter
+            end_time: Optional end time filter
             run_id: Optional run ID filter
             identity_id: Optional identity ID filter
             resource: Optional resource filter
@@ -104,15 +105,15 @@ class AuditLogger(ABC):
     
     @abstractmethod
     async def create_record(self, 
-                     resource_accessed: str,
-                     action_requested: str,
+                     resource: str,
+                     action: str,
                      metadata: Optional[Dict[str, Any]] = None) -> AuditRecord:
         """
         Create a new audit record.
         
         Parameters:
-            resource_accessed: The resource being accessed (required)
-            action_requested: The action being performed (required)
+            resource: The resource being accessed (required)
+            action: The action being performed (required)
             metadata: Additional execution-wide metadata
             
         Returns:
@@ -120,8 +121,8 @@ class AuditLogger(ABC):
         """
         record = AuditRecord(
             started_at=datetime.now(),
-            resource_accessed=resource_accessed,
-            action_requested=action_requested,
+            resource=resource,
+            action=action,
             metadata=metadata or {}
         )
         return record
