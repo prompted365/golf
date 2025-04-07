@@ -1,11 +1,12 @@
 from .base import AuditLogger
-from .models import AuditEvent, AuditEventType
+from .models import AuditEvent, AuditEventType, AuditRecord
 
 __all__ = [
-    # Base interfaces
+    # Base interface
     "AuditLogger",
     
     # Models
     "AuditEvent",
     "AuditEventType",
+    "AuditRecord",
 ] 
