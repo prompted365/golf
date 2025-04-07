@@ -22,5 +22,5 @@ async def module_lifecycle(
         yield module
         await manager.stop_module(module_name)
     except Exception as e:
-        await manager.stop_module(module_name, error=str(e))
-        raise 
+        await manager.stop_module(module_name, error=e)
+        raise
