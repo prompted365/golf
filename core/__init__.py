@@ -4,7 +4,7 @@ from .manager import AuthedManager, PipelineConfig
 from .exceptions import (
     AuthedError, PipelineError, ModuleError,
     IdentityError, PermissionValidation, CredentialError, AuditError,
-    ConfigurationError, DependencyError, ModuleNotRegistered, ShutdownError
+    ConfigurationError, ModuleNotRegistered, ShutdownError
 )
 
 __all__ = [
@@ -31,7 +31,6 @@ __all__ = [
     "CredentialError",
     "AuditError",
     "ConfigurationError",
-    "DependencyError",
     "ModuleNotRegistered",
     "ShutdownError"
 ]
