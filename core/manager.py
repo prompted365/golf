@@ -167,8 +167,7 @@ class AuthedManager:
             if name not in visited:
                 visit(name)
         
-        # Reverse the order to get dependency-first ordering
-        return list(reversed(order))
+        return order
     
     def _get_execution_order(self) -> List[str]:
         """Get the module execution order based on config and dependencies."""
