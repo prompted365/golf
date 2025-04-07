@@ -1,9 +1,10 @@
 from typing import Dict, List, Optional, Any
 from .events import ModuleState, ModuleLifecycleEvent
 from audit.base import AuditLogger
-from audit.models import AuditContext
+from audit.models import AuditContext, AuditEventType
 from datetime import datetime
 from ..exceptions import ModuleNotRegistered
+import uuid
 
 class ModuleLifecycleManager:
     """
@@ -14,6 +15,7 @@ class ModuleLifecycleManager:
         self.audit_logger = audit_logger
         self.modules: Dict[str, Any] = {}
         self.events: Dict[str, List[ModuleLifecycleEvent]] = {}
+        self.contexts: Dict[str, AuditContext] = {}  # Store audit contexts for each module
         
     async def start_module(self, module_name: str, module: Any, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Start a module and begin tracking its lifecycle."""
@@ -33,6 +35,23 @@ class ModuleLifecycleManager:
         )
         self.events[module_name].append(event)
 
+        # Create an audit context for this module
+        run_id = str(uuid.uuid4())  # Generate a unique run ID
+        context = await self.audit_logger.start(
+            run_id=run_id,
+            resource=module_name,
+            action="module_lifecycle",
+            metadata={"state": "starting", "module": module_name}
+        )
+        self.contexts[module_name] = context
+
+        # Log module start event
+        await self.audit_logger.log_event(
+            context,
+            AuditEventType.MODULE_STARTED,
+            {"module": module_name, "metadata": metadata or {}}
+        )
+
         # Update to running state
         event = ModuleLifecycleEvent(
             module=module_name,
@@ -41,6 +60,13 @@ class ModuleLifecycleManager:
             metadata=metadata or {}
         )
         self.events[module_name].append(event)
+
+        # Log module running event
+        await self.audit_logger.log_event(
+            context,
+            AuditEventType.MODULE_RUNNING,
+            {"module": module_name, "state": "running"}
+        )
 
     async def stop_module(self, module_name: str, error: Optional[str] = None) -> None:
         """Stop a module and record the event."""
@@ -56,6 +82,16 @@ class ModuleLifecycleManager:
         )
         self.events[module_name].append(event)
         
+        # Get the audit context for this module
+        context = self.contexts.get(module_name)
+        if context:
+            # Log module stopping event
+            await self.audit_logger.log_event(
+                context,
+                AuditEventType.MODULE_STOPPING,
+                {"module": module_name, "error": error if error else None}
+            )
+        
         # Record stopped event
         event = ModuleLifecycleEvent(
             module=module_name,
@@ -64,12 +100,30 @@ class ModuleLifecycleManager:
             metadata={"error": error} if error else {}
         )
         self.events[module_name].append(event)
+        
+        # Finalize the audit context if it exists
+        if context:
+            # Log module stopped event
+            await self.audit_logger.log_event(
+                context,
+                AuditEventType.MODULE_STOPPED,
+                {"module": module_name, "error": error if error else None}
+            )
+            
+            # End the audit context
+            await self.audit_logger.end(
+                context,
+                success=(error is None),  # Success is True if there's no error
+                error=error
+            )
               
         # Clean up
         if module_name in self.modules:
             del self.modules[module_name]
         if module_name in self.events:
             del self.events[module_name]
+        if module_name in self.contexts:
+            del self.contexts[module_name]
 
     def get_module_state(self, module_name: str) -> Optional[ModuleState]:
         """Get the current state of a module."""
