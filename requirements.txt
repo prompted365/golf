@@ -1,2 +1,6 @@
 # Core dependencies
 pydantic>=2.11.0  # For data validation and settings management
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
