@@ -57,11 +57,23 @@ class ModuleContext(BaseModel):
             ValueError: If the result indicates failure
         """
         if not result.success:
-            raise ValueError(f"Module failed: {result.error}")
+            # Return a new context with the error in metadata
+            return self.model_copy(update={
+                "data": {
+                    **self.data,
+                    "error": result.error,
+                    "error_metadata": result.metadata
+                }
+            })
             
-        new_data = self.data.copy()
-        new_data.update(result.data)
-        return self.model_copy(update={"data": new_data})
+        # Return a new context with the successful result data
+        return self.model_copy(update={
+            "data": {
+                **self.data,
+                **result.data,
+                **result.metadata
+            }
+        })
     
     # Type-specific convenience methods
     def get_identity(self) -> Optional[Dict[str, Any]]:
