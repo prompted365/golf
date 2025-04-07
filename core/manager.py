@@ -147,7 +147,11 @@ class AuthedManager:
         def visit(name: str):
             if name in temp_mark:
                 # Circular dependency detected
-                raise DependencyError(name, list(dependency_map[name])[0])
+                cycle = list(temp_mark) + [name]
+                raise DependencyError(
+                    name,
+                    f"Circular dependency detected: {' -> '.join(cycle)}"
+                )
             if name not in visited and name in dependency_map:
                 temp_mark.add(name)
                 for dep in dependency_map[name]:
