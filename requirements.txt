@@ -1,0 +1,2 @@
+# Core dependencies
+pydantic==2.11.2  # For data validation and settings management
