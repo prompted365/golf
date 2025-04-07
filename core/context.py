@@ -10,7 +10,7 @@ class ModuleResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     @classmethod
-    def success_result(cls, data: Dict[str, Any] = None, metadata: Dict[str, Any] = None) -> "ModuleResult":
+    def success_result(cls, data: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None) -> "ModuleResult":
         """Create a successful result."""
         return cls(
             success=True,
@@ -19,7 +19,7 @@ class ModuleResult(BaseModel):
         )
     
     @classmethod
-    def error_result(cls, error: str, metadata: Dict[str, Any] = None) -> "ModuleResult":
+    def error_result(cls, error: str, metadata: Optional[Dict[str, Any]] = None) -> "ModuleResult":
         """Create an error result."""
         return cls(
             success=False,
