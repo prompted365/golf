@@ -1,25 +1,71 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
-
-from ..identity.models import AgentIdentity
-from .models import AuditEventType, AuditRecord
+from .models import AuditContext, AuditRecord
 
 class AuditLogger(ABC):
-    """Base class for audit loggers."""
-    
+    """
+    Base interface for all audit loggers.
+    Supports span-based or log-based backends (e.g., OpenTelemetry, file, DB).
+    """
+
     @abstractmethod
-    async def log_record(self, record: AuditRecord) -> None:
+    async def start(
+        self,
+        run_id: str,
+        identity_id: Optional[str] = None,
+        resource: Optional[str] = None,
+        action: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AuditContext:
         """
-        Log a complete audit record.
+        Initialize a new audit context. May start a span or trace under the hood.
         
         Parameters:
-            record: The audit record to log
+            run_id: Unique identifier for this audit session
+            identity_id: Optional identity being audited
+            resource: Optional resource being accessed
+            action: Optional action being performed
+            metadata: Optional additional metadata
             
-        Raises:
-            AuditError: If the record cannot be logged
+        Returns:
+            AuditContext: The initialized audit context
         """
         pass
-    
+
+    @abstractmethod
+    async def log_event(
+        self,
+        context: AuditContext,
+        event_type: str,
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Record an audit event, optionally structured (e.g., log line, span event).
+        
+        Parameters:
+            context: The audit context this event belongs to
+            event_type: Type of event (from AuditEventType or custom string)
+            attributes: Optional event-specific attributes
+        """
+        pass
+
+    @abstractmethod
+    async def end(
+        self,
+        context: AuditContext,
+        success: bool = True,
+        error: Optional[str] = None,
+    ) -> None:
+        """
+        Finalize the audit session (e.g., end span, flush logs).
+        
+        Parameters:
+            context: The audit context to finalize
+            success: Whether the operation was successful
+            error: Optional error message if unsuccessful
+        """
+        pass
+
     @abstractmethod
     async def query_records(self, 
                            start_time: Optional[str] = None, 
@@ -76,44 +122,3 @@ class AuditLogger(ABC):
             metadata=metadata or {}
         )
         return record
-    
-    async def log_event(self,
-                        record: AuditRecord,
-                        event_type: str,
-                        data: Optional[Dict[str, Any]] = None,
-                        **kwargs) -> None:
-        """
-        Log an event to the audit record.
-        
-        This is the primary method to add any type of event to an audit record.
-        
-        Parameters:
-            record: The audit record to add the event to
-            event_type: The type of event (can be from AuditEventType or a custom string)
-            data: Event-specific data
-            **kwargs: Any key-value pairs to include in the event data
-        """
-        # Combine data dict and kwargs
-        event_data = data or {}
-        event_data.update(kwargs)
-        
-        # Handle special fields that should also update the record
-        if event_type == AuditEventType.REQUEST_STARTED:
-            if "resource" in event_data and record.resource_accessed is None:
-                record.resource_accessed = event_data["resource"]
-            if "action" in event_data and record.action_requested is None:
-                record.action_requested = event_data["action"]
-            if "client_ip" in event_data and record.client_ip is None:
-                record.client_ip = event_data["client_ip"]
-            if "user_agent" in event_data and record.user_agent is None:
-                record.user_agent = event_data["user_agent"]
-        
-        # Handle the identity object if provided
-        if "identity" in event_data and hasattr(event_data["identity"], "id"):
-            identity = event_data["identity"]
-            event_data["identity_id"] = identity.id
-            # Remove the full identity object to avoid serialization issues
-            event_data.pop("identity", None)
-        
-        # Add the event to the record (which will handle module-specific data)
-        record.add_event(event_type, event_data)
