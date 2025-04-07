@@ -89,7 +89,7 @@ class ModuleLifecycleManager:
             module=module_name,
             state=ModuleState.STOPPING,
             timestamp=datetime.now(),
-            metadata={"error": error} if error else None
+            metadata={"error": error} if error else {}
         )
         self.events[module_name].append(event)
         
@@ -98,7 +98,7 @@ class ModuleLifecycleManager:
             module=module_name,
             state=ModuleState.STOPPED,
             timestamp=datetime.now(),
-            metadata={"error": error} if error else None
+            metadata={"error": error} if error else {}
         )
         self.events[module_name].append(event)
         
