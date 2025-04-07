@@ -24,7 +24,7 @@ class ModuleLifecycleManager:
             run_id=f"module-{module_name}",
             resource=f"module/{module_name}",
             action="start",
-            metadata=metadata
+            metadata=metadata or {}
         )
         self.contexts[module_name] = context
 
@@ -42,19 +42,20 @@ class ModuleLifecycleManager:
         await self.audit_logger.log_event(
             context,
             "module_starting",
-            {"module": module_name, "metadata": metadata}
+            {"module": module_name, "metadata": metadata or {}}
         )
 
         # Update to running state
         event = ModuleLifecycleEvent(
             module=module_name,
-            state=ModuleState.RUNNING
+            state=ModuleState.RUNNING,
+            metadata=metadata or {}
         )
         self.events[module_name].append(event)
         await self.audit_logger.log_event(
             context,
             "module_running",
-            {"module": module_name}
+            {"module": module_name, "metadata": metadata or {}}
         )
 
     async def stop_module(self, module_name: str, error: Optional[str] = None) -> None:
