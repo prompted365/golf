@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Any
 import time
 from pydantic import BaseModel, Field, SecretStr
+from pydantic import model_validator
 
 class Credential(BaseModel):
     """Represents a credential that can be used to access external resources."""
@@ -42,7 +43,18 @@ class CredentialRequest(BaseModel):
 
 class CredentialResult(BaseModel):
     """Result of a credential resolution request."""
-    success: bool                            # Whether the resolution was successful
     credential: Optional[Credential] = None  # The resolved credential (if successful)
     error: Optional[str] = None              # Error message (if unsuccessful)
-    metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata 
+    metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata
+    
+    @model_validator(mode='after')
+    def validate_result(self) -> 'CredentialResult':
+        """Validate that success and error are mutually exclusive."""
+        if self.credential is not None and self.error is not None:
+            raise ValueError("Credential result cannot have both a credential and an error")
+        return self
+    
+    @property
+    def success(self) -> bool:
+        """Whether the credential resolution was successful."""
+        return self.credential is not None and self.error is None 
