@@ -134,40 +134,14 @@ class AuthedManager:
         if not self.modules:
             return []
         
-        # Map of module name to dependencies
-        dependency_map: Dict[str, Set[str]] = {}
-        for name, module in self.modules.items():
-            dependency_map[name] = set(module.metadata.dependencies)
+        # Start with default execution order for standard modules
+        default_modules = [
+            m for m in self.DEFAULT_EXECUTION_ORDER 
+            if m in self.modules and self._is_module_enabled(m)
+        ]
         
-        # Resolve execution order using topological sort
-        visited: Set[str] = set()
-        temp_mark: Set[str] = set()
-        order: List[str] = []
-        
-        def visit(name: str):
-            if name in temp_mark:
-                # Circular dependency detected
-                cycle = list(temp_mark) + [name]
-                raise DependencyError(
-                    name,
-                    f"Circular dependency detected: {' -> '.join(cycle)}"
-                )
-            if name not in visited and name in dependency_map:
-                temp_mark.add(name)
-                for dep in dependency_map[name]:
-                    if dep not in self.modules:
-                        raise DependencyError(name, dep)
-                    visit(dep)
-                temp_mark.remove(name)
-                visited.add(name)
-                order.append(name)
-        
-        # Try to visit each module
-        for name in self.modules:
-            if name not in visited:
-                visit(name)
-        
-        return order
+        # Return combined list with standard modules first, then custom modules
+        return default_modules
     
     def _get_execution_order(self) -> List[str]:
         """Get the module execution order based on config and dependencies."""
