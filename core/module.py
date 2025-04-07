@@ -18,7 +18,7 @@ class BaseModuleConfig(BaseModel):
     # The module should define its own config class extending this
 
 @runtime_checkable
-class Module(Protocol):
+class Module(Protocol[T]):
     """Protocol defining the interface for a module."""
     
     @property
@@ -30,7 +30,7 @@ class Module(Protocol):
         """Process the context and return a result."""
         ...
     
-    def configure(self, config: BaseModel) -> None:
+    def configure(self, config: T) -> None:
         """Configure the module with settings.
         
         Args:
@@ -39,7 +39,7 @@ class Module(Protocol):
         ...
     
     @property
-    def config_model(self) -> Type[BaseModel]:
+    def config_model(self) -> Type[T]:
         """Get the configuration model class for this module."""
         ...
 
