@@ -2,6 +2,7 @@ from typing import Dict, List, Optional, Any
 from .events import ModuleState, ModuleLifecycleEvent
 from audit.base import AuditLogger
 from audit.models import AuditContext
+from datetime import datetime
 
 class ModuleLifecycleManager:
     """
@@ -74,55 +75,37 @@ class ModuleLifecycleManager:
             raise RuntimeError(f"Failed to start module {module_name}: {str(e)}")
 
     async def stop_module(self, module_name: str, error: Optional[str] = None) -> None:
-        """Stop a module and finalize its lifecycle."""
-        if module_name not in self.modules:
-            raise ValueError(f"Module {module_name} is not running")
-
+        """Stop a module and record the event."""
+        if module_name not in self.contexts:
+            raise ModuleNotFoundError(module_name)
+            
         context = self.contexts[module_name]
-
-        try:
-            # Record stopping event
-            event = ModuleLifecycleEvent(
-                module=module_name,
-                state=ModuleState.STOPPING,
-                error=error
-            )
-            self.events[module_name].append(event)
-            await self.audit_logger.log_event(
-                context,
-                "module_stopping",
-                {"module": module_name, "error": error}
-            )
-
-            # Clean up in reverse order of dependency
-            try:
-                del self.modules[module_name]
-            except KeyError:
-                pass  # Already removed
-
-            try:
-                del self.events[module_name]
-            except KeyError:
-                pass  # Already removed
-
-            try:
-                del self.contexts[module_name]
-            except KeyError:
-                pass  # Already removed
-
-            # Finalize audit context
-            await self.audit_logger.end(
-                context,
-                success=error is None,
-                error=error
-            )
-        except Exception as e:
-            # Log the cleanup error but don't re-raise to ensure cleanup continues
-            await self.audit_logger.log_event(
-                context,
-                "module_cleanup_error",
-                {"module": module_name, "error": str(e)}
-            )
+        
+        # Record stopping event
+        event = ModuleLifecycleEvent(
+            module=module_name,
+            state=ModuleState.STOPPING,
+            timestamp=datetime.now(),
+            metadata={"error": error} if error else None
+        )
+        self.events[module_name].append(event)
+        
+        # Record stopped event
+        event = ModuleLifecycleEvent(
+            module=module_name,
+            state=ModuleState.STOPPED,
+            timestamp=datetime.now(),
+            metadata={"error": error} if error else None
+        )
+        self.events[module_name].append(event)
+        
+        # Clean up
+        if module_name in self.modules:
+            del self.modules[module_name]
+        if module_name in self.events:
+            del self.events[module_name]
+        if module_name in self.contexts:
+            del self.contexts[module_name]
 
     def get_module_state(self, module_name: str) -> Optional[ModuleState]:
         """Get the current state of a module."""
