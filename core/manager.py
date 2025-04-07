@@ -215,27 +215,102 @@ class AuthedManager:
         # Get execution order
         execution_order = self._get_execution_order()
         
+        # Create audit context if audit module is enabled
+        audit_context = None
+        if self.config.audit:
+            try:
+                # Start an audit context for the entire pipeline execution
+                resource = request.get("resource") if isinstance(request, dict) else None
+                action = request.get("action") if isinstance(request, dict) else None
+                
+                # Create audit context from the beginning
+                audit_context = await self.lifecycle_manager.audit_logger.start(
+                    run_id=context.run_id,
+                    resource=resource,
+                    action=action,
+                    metadata={"request_type": type(request).__name__}
+                )
+                
+                # Log the pipeline start event
+                await self.lifecycle_manager.audit_logger.log_event(
+                    context=audit_context, 
+                    event_type="REQUEST_STARTED",
+                    attributes={"modules": execution_order}
+                )
+                
+                # Store the audit context in the request context for later use
+                context.metadata["audit_context"] = audit_context
+            except Exception as e:
+                # If audit fails to start, log but continue with the pipeline
+                # This allows the system to function even if audit is broken
+                print(f"Error starting audit: {str(e)}")
+        
         try:
             # Process each module in order
             for module_name in execution_order:
                 if not self._is_module_enabled(module_name):
                     continue
                 
-                result = await self._process_module(module_name, context)
-                
-                # If module failed, let the module decide whether to continue
-                # by returning success=False or raising an exception
-                if not result.success:
-                    # Still update context with result data
-                    context = context.with_result(result)
-                else:
+                try:
+                    # Process the module
+                    result = await self._process_module(module_name, context)
+                    
                     # Update context with result data
                     context = context.with_result(result)
+                    
+                    # Log module success in audit trail if audit is enabled
+                    if audit_context:
+                        await self.lifecycle_manager.audit_logger.log_event(
+                            context=audit_context,
+                            event_type=f"{module_name.upper()}_PROCESSED",
+                            attributes={
+                                "success": True,
+                                "module": module_name,
+                                "result_keys": list(result.data.keys())
+                            }
+                        )
+                except Exception as e:
+                    # Log module failure in audit trail if audit is enabled
+                    if audit_context:
+                        await self.lifecycle_manager.audit_logger.log_event(
+                            context=audit_context,
+                            event_type="MODULE_ERROR",
+                            attributes={
+                                "module": module_name,
+                                "error": str(e)
+                            }
+                        )
+                    # Re-raise the exception for normal error handling
+                    raise
+            
+            # If we reach here, all modules processed successfully
+            # Complete the audit trail with success
+            if audit_context:
+                await self.lifecycle_manager.audit_logger.end(
+                    context=audit_context,
+                    success=True
+                )
             
             return context
-        except PipelineError:
+            
+        except PipelineError as e:
+            # Complete the audit trail with failure details
+            if audit_context:
+                await self.lifecycle_manager.audit_logger.end(
+                    context=audit_context,
+                    success=False,
+                    error=f"Pipeline error: {str(e)}"
+                )
             # Re-raise pipeline errors
             raise
+            
         except Exception as e:
+            # Complete the audit trail with failure details
+            if audit_context:
+                await self.lifecycle_manager.audit_logger.end(
+                    context=audit_context,
+                    success=False,
+                    error=f"Unexpected error: {str(e)}"
+                )
             # Wrap other exceptions
             raise PipelineError(str(e), context) 
