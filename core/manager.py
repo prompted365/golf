@@ -262,7 +262,7 @@ class AuthedManager:
                     await self.lifecycle_manager.audit_logger.log_event(
                         audit_context,
                         AuditEventType.MODULE_PROCESSING_START,
-                        {"module": module_name, "context_state": context.state}
+                        {"module": module_name, "context_data": context.data}
                     )
                     
                     # Process the module
@@ -299,7 +299,7 @@ class AuthedManager:
                 audit_context,
                 AuditEventType.REQUEST_COMPLETED,
                 {"success": pipeline_success, 
-                 "final_context_state": context.state,
+                 "final_context_data": context.data,
                  "error_message": error_message,
                  "error_module": error_module}
             )
