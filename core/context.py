@@ -28,11 +28,12 @@ class ModuleResult(BaseModel):
         )
 
 class ModuleContext(BaseModel):
-    """Context passed to modules."""
-    request: Any
+    """Context passed between modules during processing."""
+    request: Dict[str, Any] = Field(default_factory=dict)  # Original request data
+    data: Dict[str, Any] = Field(default_factory=dict)     # Module-specific data
+    metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional metadata
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     runtime_type: str = "generic"
-    data: Dict[str, Any] = Field(default_factory=dict)
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get a value from the context data."""
