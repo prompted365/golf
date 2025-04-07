@@ -1,6 +1,6 @@
-from datetime import datetime
+from typing import Optional, Dict, Any, List
+from datetime import datetime, UTC
 from enum import Enum
-from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 import uuid
 
@@ -34,88 +34,85 @@ class AuditEventType(str, Enum):
     CUSTOM = "custom"                              # Custom event type
 
 class AuditEvent(BaseModel):
-    """An audit event that occurs during a pipeline execution."""
-    event_type: str  # Can be from AuditEventType or a custom string
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    data: Dict[str, Any] = Field(default_factory=dict)  # Event-specific payload/details
-    
+    """An individual audit event with its data and timestamp."""
+    event_type: AuditEventType
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
+
+class AuditContext(BaseModel):
+    """
+    Shared context object passed through the audit flow.
+    Holds core metadata and optional telemetry-related state.
+    """
+    run_id: str
+    identity_id: Optional[str] = None
+    resource: Optional[str] = None
+    action: Optional[str] = None
+    start_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    telemetry: Dict[str, Any] = Field(default_factory=dict, exclude=True)
+
+    def set_telemetry(self, key: str, value: Any) -> None:
+        self.telemetry[key] = value
+
+    def get_telemetry(self, key: str) -> Any:
+        return self.telemetry.get(key)
+
+    def has_telemetry(self, key: str) -> bool:
+        return key in self.telemetry
+
     class Config:
         json_encoders = {
             datetime: lambda dt: dt.isoformat()
         }
 
 class AuditRecord(BaseModel):
-    """A complete audit record for an entire execution pipeline."""
+    """
+    Complete record of an audit session, including all events and final state.
+    This is what gets persisted to the audit log.
+    """
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     ended_at: Optional[datetime] = None
 
-    # Identity information
-    identity_id: Optional[str] = None          # AgentIdentity.id if resolved
-    identity_source: Optional[str] = None      # Source of identity (e.g., "authed", "jwt")
-    
-    # Request information
-    resource_accessed: Optional[str] = None    # e.g. "documents/123"
-    action_requested: Optional[str] = None     # e.g. "read"
-
-    # Result information
-    success: Optional[bool] = None             # Was the overall execution successful?
-    error_code: Optional[str] = None           # Error code, if applicable
-    error_message: Optional[str] = None        # Human-readable error, if applicable
-    error_module: Optional[str] = None         # Module where the error occurred
+    # Core request information
+    identity_id: Optional[str] = None
+    resource: Optional[str] = None
+    action: Optional[str] = None
+    client_ip: Optional[str] = None
+    user_agent: Optional[str] = None
 
     # Module completion status
-    identity_resolved: Optional[bool] = None   # Did identity resolution succeed?
-    permission_checked: Optional[bool] = None  # Did permission check succeed?
-    credential_resolved: Optional[bool] = None # Did credential resolution succeed?
+    identity_resolved: Optional[bool] = None
+    permission_checked: Optional[bool] = None
+    credential_resolved: Optional[bool] = None
 
-    # Detailed events
-    events: List[AuditEvent] = Field(default_factory=list)  # Batched flow events
-    metadata: Dict[str, Any] = Field(default_factory=dict)  # Additional execution-wide metadata
-    
-    def add_event(self, event_type: str, data: Dict[str, Any]) -> None:
+    # Final state
+    success: Optional[bool] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    error_module: Optional[str] = None
+
+    # Events and metadata
+    events: List[AuditEvent] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def add_event(self, event_type: str, attributes: Optional[Dict[str, Any]] = None) -> None:
         """Add an event to this audit record."""
         self.events.append(AuditEvent(
             event_type=event_type,
-            timestamp=datetime.utcnow(),
-            data=data
+            attributes=attributes or {}
         ))
-        
-        # Update module status based on event type
-        if event_type == AuditEventType.IDENTITY_RESOLVED:
-            self.identity_resolved = True
-            if "identity_id" in data:
-                self.identity_id = data["identity_id"]
-            if "source" in data:
-                self.identity_source = data["source"]
-                
-        elif event_type == AuditEventType.IDENTITY_VERIFICATION_FAILED:
-            self.identity_resolved = False
-            
-        elif event_type in (AuditEventType.PERMISSION_GRANTED, AuditEventType.PERMISSION_DENIED):
-            self.permission_checked = True
-            if event_type == AuditEventType.PERMISSION_GRANTED:
-                # This doesn't set the overall success, just the permission check
-                self.metadata["permission_granted"] = True
-            else:
-                self.metadata["permission_granted"] = False
-                
-        elif event_type == AuditEventType.CREDENTIAL_RESOLVED:
-            self.credential_resolved = True
-            if "credential_id" in data:
-                self.metadata["credential_id"] = data["credential_id"]
-                
-        elif event_type == AuditEventType.MODULE_ERROR:
-            if "module" in data:
-                self.error_module = data["module"]
-            if "error_code" in data:
-                self.error_code = data["error_code"]
-            if "error_message" in data:
-                self.error_message = data["error_message"]
-    
-    def complete(self, success: bool, error_code: Optional[str] = None, error_message: Optional[str] = None, error_module: Optional[str] = None) -> None:
+
+    def complete(self, success: bool, error_code: Optional[str] = None, 
+                error_message: Optional[str] = None, error_module: Optional[str] = None) -> None:
         """Complete this audit record with success/failure information."""
-        self.ended_at = datetime.utcnow()
+        self.ended_at = datetime.now(UTC)
         self.success = success
         
         if not success:
@@ -124,16 +121,16 @@ class AuditRecord(BaseModel):
             self.error_module = error_module
             
         # Add a final event for the completion
-        event_type = AuditEventType.REQUEST_COMPLETED
-        event_data = {"success": success}
-        
-        if not success:
-            event_data["error_code"] = error_code
-            event_data["error_message"] = error_message
-            event_data["error_module"] = error_module
-            
-        self.add_event(event_type, event_data)
-    
+        self.add_event(
+            AuditEventType.REQUEST_COMPLETED,
+            {
+                "success": success,
+                "error_code": error_code,
+                "error_message": error_message,
+                "error_module": error_module
+            }
+        )
+
     class Config:
         json_encoders = {
             datetime: lambda dt: dt.isoformat()
