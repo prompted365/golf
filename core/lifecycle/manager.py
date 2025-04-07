@@ -19,44 +19,59 @@ class ModuleLifecycleManager:
         if module_name in self.modules:
             raise ValueError(f"Module {module_name} is already running")
 
-        # Start audit context
-        context = await self.audit_logger.start(
-            run_id=f"module-{module_name}",
-            resource=f"module/{module_name}",
-            action="start",
-            metadata=metadata or {}
-        )
-        self.contexts[module_name] = context
+        try:
+            # Start audit context
+            context = await self.audit_logger.start(
+                run_id=f"module-{module_name}",
+                resource=f"module/{module_name}",
+                action="start",
+                metadata=metadata or {}
+            )
+            self.contexts[module_name] = context
 
-        # Initialize module tracking
-        self.modules[module_name] = module
-        self.events[module_name] = []
+            # Initialize module tracking
+            self.modules[module_name] = module
+            self.events[module_name] = []
 
-        # Record start event
-        event = ModuleLifecycleEvent(
-            module=module_name,
-            state=ModuleState.STARTING,
-            metadata=metadata or {}
-        )
-        self.events[module_name].append(event)
-        await self.audit_logger.log_event(
-            context,
-            "module_starting",
-            {"module": module_name, "metadata": metadata or {}}
-        )
+            try:
+                # Record start event
+                event = ModuleLifecycleEvent(
+                    module=module_name,
+                    state=ModuleState.STARTING,
+                    metadata=metadata or {}
+                )
+                self.events[module_name].append(event)
+                await self.audit_logger.log_event(
+                    context,
+                    "module_starting",
+                    {"module": module_name, "metadata": metadata or {}}
+                )
 
-        # Update to running state
-        event = ModuleLifecycleEvent(
-            module=module_name,
-            state=ModuleState.RUNNING,
-            metadata=metadata or {}
-        )
-        self.events[module_name].append(event)
-        await self.audit_logger.log_event(
-            context,
-            "module_running",
-            {"module": module_name, "metadata": metadata or {}}
-        )
+                # Update to running state
+                event = ModuleLifecycleEvent(
+                    module=module_name,
+                    state=ModuleState.RUNNING,
+                    metadata=metadata or {}
+                )
+                self.events[module_name].append(event)
+                await self.audit_logger.log_event(
+                    context,
+                    "module_running",
+                    {"module": module_name, "metadata": metadata or {}}
+                )
+            except Exception as e:
+                # Clean up on event logging failure
+                await self.stop_module(module_name, f"Failed to log module events: {str(e)}")
+                raise
+        except Exception as e:
+            # Clean up on any failure
+            if module_name in self.modules:
+                del self.modules[module_name]
+            if module_name in self.events:
+                del self.events[module_name]
+            if module_name in self.contexts:
+                del self.contexts[module_name]
+            raise RuntimeError(f"Failed to start module {module_name}: {str(e)}")
 
     async def stop_module(self, module_name: str, error: Optional[str] = None) -> None:
         """Stop a module and finalize its lifecycle."""
