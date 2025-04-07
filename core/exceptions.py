@@ -32,12 +32,12 @@ class DependencyError(AuthedError):
         self.dependency = dependency
         super().__init__(f"Module {module} depends on {dependency}, but it is not available")
 
-class ModuleNotFoundError(AuthedError):
-    """Error when a required module is not found."""
+class ModuleNotRegisteredError(AuthedError):
+    """Error when a required module is not registered."""
     
     def __init__(self, module_name: str):
         self.module_name = module_name
-        super().__init__(f"Module {module_name} not found")
+        super().__init__(f"Module {module_name} is not registered")
 
 class IdentityError(ModuleError):
     """Error during identity resolution."""
