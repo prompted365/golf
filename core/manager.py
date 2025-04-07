@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from contextlib import contextmanager
+import uuid
 
 from .context import ModuleContext, ModuleResult
 from .module import Module
@@ -12,6 +13,7 @@ from .exceptions import (
 )
 from .lifecycle import ModuleLifecycleManager, ModuleState, ModuleLifecycleEvent
 from audit.base import AuditLogger
+from audit.models import AuditEventType
 
 class PipelineConfig(BaseModel):
     """Configuration for the authentication pipeline."""
@@ -96,7 +98,7 @@ class AuthedManager:
                 errors.append((module_name, str(e)))
                 await self.lifecycle_manager.audit_logger.log_event(
                     self.lifecycle_manager.contexts.get(module_name),
-                    "module_stop_error",
+                    AuditEventType.MODULE_ERROR,
                     {"module": module_name, "error": str(e)}
                 )
         
@@ -223,6 +225,32 @@ class AuthedManager:
         else:
             context.metadata["request_type"] = type(request).__name__
         
+        # Initialize audit context for the pipeline execution
+        run_id = str(uuid.uuid4())
+        resource = context.metadata.get("resource", "unknown")
+        action = context.metadata.get("action", "unknown")
+        
+        audit_context = await self.lifecycle_manager.audit_logger.start(
+            run_id=run_id,
+            resource=resource,
+            action=action,
+            metadata={"pipeline_start": True, "request_type": context.metadata.get("request_type")}
+        )
+        
+        # Log the pipeline start event
+        await self.lifecycle_manager.audit_logger.log_event(
+            audit_context,
+            AuditEventType.REQUEST_STARTED,
+            {"pipeline_execution_order": execution_order}
+        )
+        
+        # Store run_id in the module context for tracking
+        context.metadata["run_id"] = run_id
+        
+        pipeline_success = True
+        error_message = None
+        error_module = None
+        
         try:
             # Process each module in order
             for module_name in execution_order:
@@ -230,22 +258,92 @@ class AuthedManager:
                     continue
                 
                 try:
+                    # Log module processing start
+                    await self.lifecycle_manager.audit_logger.log_event(
+                        audit_context,
+                        AuditEventType.MODULE_PROCESSING_START,
+                        {"module": module_name, "context_state": context.state}
+                    )
+                    
                     # Process the module
                     result = await self._process_module(module_name, context)
                     
                     # Update context with result data
                     context = context.with_result(result)
                     
+                    # Log module processing success
+                    await self.lifecycle_manager.audit_logger.log_event(
+                        audit_context,
+                        AuditEventType.MODULE_PROCESSING_SUCCESS,
+                        {"module": module_name, 
+                         "result": result.to_dict() if hasattr(result, "to_dict") else str(result)}
+                    )
+                    
                 except Exception as e:
+                    # Log module processing failure
+                    pipeline_success = False
+                    error_message = str(e)
+                    error_module = module_name
+                    
+                    await self.lifecycle_manager.audit_logger.log_event(
+                        audit_context,
+                        AuditEventType.MODULE_ERROR,
+                        {"module": module_name, "error": str(e), "error_type": type(e).__name__}
+                    )
+                    
                     # Re-raise the exception for normal error handling
                     raise
+            
+            # Finalize the audit context with success information
+            await self.lifecycle_manager.audit_logger.log_event(
+                audit_context,
+                AuditEventType.REQUEST_COMPLETED,
+                {"success": pipeline_success, 
+                 "final_context_state": context.state,
+                 "error_message": error_message,
+                 "error_module": error_module}
+            )
+            
+            await self.lifecycle_manager.audit_logger.end(
+                audit_context,
+                success=pipeline_success,
+                error=error_message
+            )
             
             return context
             
         except PipelineError as e:
+            # Log pipeline error
+            await self.lifecycle_manager.audit_logger.log_event(
+                audit_context,
+                AuditEventType.PIPELINE_ERROR,
+                {"error": str(e), "error_type": "PipelineError"}
+            )
+            
+            # Finalize the audit context with error information
+            await self.lifecycle_manager.audit_logger.end(
+                audit_context,
+                success=False,
+                error=str(e)
+            )
+            
             # Re-raise pipeline errors
             raise
             
         except Exception as e:
+            # Log unexpected error
+            await self.lifecycle_manager.audit_logger.log_event(
+                audit_context,
+                AuditEventType.MODULE_ERROR,
+                {"error": str(e), "error_type": type(e).__name__}
+            )
+            
+            # Finalize the audit context with error information
+            await self.lifecycle_manager.audit_logger.end(
+                audit_context,
+                success=False,
+                error=str(e)
+            )
+            
             # Wrap other exceptions
             raise PipelineError(str(e), context) 
