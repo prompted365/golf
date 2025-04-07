@@ -13,19 +13,15 @@ class ModuleState(str, Enum):
     ERROR = "error"
 
 class ModuleLifecycleEvent(BaseModel):
-    """An event in a module's lifecycle."""
+    """Represents a lifecycle event for a module."""
     module: str
     state: ModuleState
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime
     metadata: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None
-
-    class Config:
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat(),
-            Enum: lambda e: e.value,
-            set: lambda s: list(s),
-            frozenset: lambda s: list(s),
-            bytes: lambda b: b.decode('utf-8', errors='replace'),
-            BaseModel: lambda m: m.dict()
+    
+    model_config = {
+        "json_encoders": {
+            datetime: lambda dt: dt.isoformat()
         }
+    }
