@@ -30,8 +30,8 @@ class Credential(BaseModel):
 
     def json(self, *args, **kwargs) -> str:
         """Override json() to exclude sensitive data."""
-        d = self.dict(*args, **kwargs)
-        return self.model_dump_json(**kwargs)
+        d = self.dict(*args, **kwargs)  # Use dict() which hides sensitive data
+        return self.model_dump_json(obj=d, **kwargs)  # Serialize the sanitized dict
 
 class CredentialRequest(BaseModel):
     """Represents a request for a credential."""
