@@ -1,12 +1,14 @@
 from typing import Any, Dict, List, Optional, Set
 from pydantic import BaseModel
+from contextlib import contextmanager
 
 from .context import ModuleContext, ModuleResult
 from .module import Module
 from .exceptions import (
     PipelineError, ModuleError, DependencyError, 
     ModuleNotFoundError, ConfigurationError,
-    IdentityError, PermissionError, CredentialError, AuditError
+    IdentityError, PermissionError, CredentialError, AuditError,
+    ShutdownError
 )
 from .lifecycle import ModuleLifecycleManager, ModuleState, ModuleLifecycleEvent
 from audit.base import AuditLogger
@@ -78,14 +80,14 @@ class AuthedManager:
                 module_name=module_name,
                 module=module,
                 metadata={
-                    "dependencies": module.metadata.dependencies,
-                    "config": module.config.dict() if hasattr(module, 'config') else None
+                    "dependencies": module.metadata.dependencies
                 }
             )
     
     async def stop(self) -> None:
         """Stop all modules in reverse dependency order."""
         execution_order = self._get_execution_order()
+        errors = []
         
         for module_name in reversed(execution_order):
             if not self._is_module_enabled(module_name):
@@ -94,11 +96,15 @@ class AuthedManager:
             try:
                 await self.lifecycle_manager.stop_module(module_name)
             except Exception as e:
-                # Log error but continue stopping other modules
-                await self.lifecycle_manager.stop_module(
-                    module_name,
-                    error=f"Error during shutdown: {str(e)}"
+                errors.append((module_name, str(e)))
+                await self.lifecycle_manager.audit_logger.log_event(
+                    self.lifecycle_manager.contexts.get(module_name),
+                    "module_stop_error",
+                    {"module": module_name, "error": str(e)}
                 )
+        
+        if errors:
+            raise ShutdownError(errors)
     
     def is_module_running(self, module_name: str) -> bool:
         """Check if a module is currently running.
