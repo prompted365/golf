@@ -80,6 +80,9 @@ class CredentialResolver(ABC):
 
         Returns:
             bool: True if the agent has access, False otherwise
+
+        Raises:
+            CredentialError: If credential resolution fails for reasons other than access denial
         """
         try:
             # Default implementation - can be overridden by subclasses
@@ -91,5 +94,25 @@ class CredentialResolver(ABC):
             
             result = await self.resolve(identity, request)
             return result.success and result.credential is not None
-        except Exception:
+        except CredentialError as e:
+            # Log credential errors but don't expose them to callers
+            import logging
+            logging.warning(
+                "Credential error checking access for %s to %s: %s",
+                identity.id,
+                resource,
+                str(e),
+                exc_info=True
+            )
+            return False
+        except Exception as e:
+            # Log unexpected errors but don't expose them to callers
+            import logging
+            logging.error(
+                "Unexpected error checking access for %s to %s: %s",
+                identity.id,
+                resource,
+                str(e),
+                exc_info=True
+            )
             return False 
