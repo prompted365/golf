@@ -72,12 +72,15 @@ class PermissionStore(ABC):
         ...
     
     @abstractmethod
-    async def add_role(self, role: Role) -> None:
+    async def add_role(self, role: Role) -> bool:
         """
         Add or update a role.
 
         Parameters:
             role: The role to add or update
+
+        Returns:
+            bool: True if the role was added/updated, False if it failed
 
         Raises:
             PermissionValidationError: If role addition fails
