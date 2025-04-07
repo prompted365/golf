@@ -3,8 +3,8 @@ from .module import Module, BaseModule, ModuleMetadata, BaseModuleConfig
 from .manager import AuthedManager, PipelineConfig
 from .exceptions import (
     AuthedError, PipelineError, ModuleError,
-    IdentityError, PermissionValidationError, CredentialError, AuditError,
-    ConfigurationError, DependencyError, ModuleNotRegisteredError, ShutdownError
+    IdentityError, PermissionValidation, CredentialError, AuditError,
+    ConfigurationError, DependencyError, ModuleNotRegistered, ShutdownError
 )
 
 __all__ = [
@@ -27,11 +27,11 @@ __all__ = [
     "PipelineError",
     "ModuleError",
     "IdentityError",
-    "PermissionValidationError",
+    "PermissionValidation",
     "CredentialError",
     "AuditError",
     "ConfigurationError",
     "DependencyError",
-    "ModuleNotRegisteredError",
+    "ModuleNotRegistered",
     "ShutdownError"
 ]
