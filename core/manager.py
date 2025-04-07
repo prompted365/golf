@@ -62,6 +62,7 @@ class AuthedManager:
             raise ConfigurationError(f"Module {module.metadata.name} is already registered")
         
         self.modules[module.metadata.name] = module
+        self._execution_order = []  # Invalidate cached execution order
         return self
     
     async def start(self) -> None:
