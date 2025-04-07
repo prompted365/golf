@@ -8,6 +8,8 @@ from .exceptions import (
     ModuleNotFoundError, ConfigurationError,
     IdentityError, PermissionError, CredentialError, AuditError
 )
+from .lifecycle import ModuleLifecycleManager, ModuleState, ModuleLifecycleEvent
+from audit.base import AuditLogger
 
 class PipelineConfig(BaseModel):
     """Configuration for the authentication pipeline."""
@@ -36,11 +38,13 @@ class AuthedManager:
     def __init__(
         self,
         *,
-        config: Optional[PipelineConfig] = None
+        config: Optional[PipelineConfig] = None,
+        audit_logger: Optional[AuditLogger] = None
     ):
         self.config = config or PipelineConfig()
         self.modules: Dict[str, Module] = {}
         self._execution_order: List[str] = []
+        self.lifecycle_manager = ModuleLifecycleManager(audit_logger or AuditLogger())
         
     def register_module(self, module: Module) -> "AuthedManager":
         """Register a module with the manager.
@@ -59,6 +63,64 @@ class AuthedManager:
         
         self.modules[module.metadata.name] = module
         return self
+    
+    async def start(self) -> None:
+        """Start all registered modules in dependency order."""
+        execution_order = self._get_execution_order()
+        
+        for module_name in execution_order:
+            if not self._is_module_enabled(module_name):
+                continue
+                
+            module = self.modules[module_name]
+            await self.lifecycle_manager.start_module(
+                module_name=module_name,
+                module=module,
+                metadata={
+                    "dependencies": module.metadata.dependencies,
+                    "config": module.config.dict() if hasattr(module, 'config') else None
+                }
+            )
+    
+    async def stop(self) -> None:
+        """Stop all modules in reverse dependency order."""
+        execution_order = self._get_execution_order()
+        
+        for module_name in reversed(execution_order):
+            if not self._is_module_enabled(module_name):
+                continue
+                
+            try:
+                await self.lifecycle_manager.stop_module(module_name)
+            except Exception as e:
+                # Log error but continue stopping other modules
+                await self.lifecycle_manager.stop_module(
+                    module_name,
+                    error=f"Error during shutdown: {str(e)}"
+                )
+    
+    def is_module_running(self, module_name: str) -> bool:
+        """Check if a module is currently running.
+        
+        Args:
+            module_name: Name of the module to check
+            
+        Returns:
+            True if the module is running, False otherwise
+        """
+        state = self.lifecycle_manager.get_module_state(module_name)
+        return state == ModuleState.RUNNING
+    
+    def get_module_events(self, module_name: str) -> List[ModuleLifecycleEvent]:
+        """Get lifecycle events for a module.
+        
+        Args:
+            module_name: Name of the module
+            
+        Returns:
+            List of lifecycle events for the module
+        """
+        return self.lifecycle_manager.get_module_events(module_name)
     
     def _resolve_dependencies(self) -> List[str]:
         """Resolve module dependencies and determine execution order."""
@@ -148,6 +210,9 @@ class AuthedManager:
         """
         if module_name not in self.modules:
             raise ModuleNotFoundError(module_name)
+        
+        if not self.is_module_running(module_name):
+            raise ModuleError(module_name, "Module is not running", context)
         
         module = self.modules[module_name]
         
