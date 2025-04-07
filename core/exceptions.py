@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Tuple
 from .context import ModuleContext
 
 class AuthedError(Exception):
@@ -61,4 +61,13 @@ class AuditError(ModuleError):
     """Error during audit logging."""
     
     def __init__(self, error: str, context: Optional[ModuleContext] = None):
-        super().__init__("audit", error, context) 
+        super().__init__("audit", error, context)
+
+class ShutdownError(AuthedError):
+    """Error during module shutdown."""
+    
+    def __init__(self, errors: List[Tuple[str, str]], context: Optional[ModuleContext] = None):
+        self.errors = errors
+        self.context = context
+        error_msg = "\n".join(f"Failed to stop {name}: {error}" for name, error in errors)
+        super().__init__(error_msg) 
