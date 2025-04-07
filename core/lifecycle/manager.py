@@ -64,30 +64,49 @@ class ModuleLifecycleManager:
 
         context = self.contexts[module_name]
 
-        # Record stopping event
-        event = ModuleLifecycleEvent(
-            module=module_name,
-            state=ModuleState.STOPPING,
-            error=error
-        )
-        self.events[module_name].append(event)
-        await self.audit_logger.log_event(
-            context,
-            "module_stopping",
-            {"module": module_name, "error": error}
-        )
+        try:
+            # Record stopping event
+            event = ModuleLifecycleEvent(
+                module=module_name,
+                state=ModuleState.STOPPING,
+                error=error
+            )
+            self.events[module_name].append(event)
+            await self.audit_logger.log_event(
+                context,
+                "module_stopping",
+                {"module": module_name, "error": error}
+            )
 
-        # Clean up
-        del self.modules[module_name]
-        del self.events[module_name]
+            # Clean up in reverse order of dependency
+            try:
+                del self.modules[module_name]
+            except KeyError:
+                pass  # Already removed
 
-        # Finalize audit context
-        await self.audit_logger.end(
-            context,
-            success=error is None,
-            error=error
-        )
-        del self.contexts[module_name]
+            try:
+                del self.events[module_name]
+            except KeyError:
+                pass  # Already removed
+
+            try:
+                del self.contexts[module_name]
+            except KeyError:
+                pass  # Already removed
+
+            # Finalize audit context
+            await self.audit_logger.end(
+                context,
+                success=error is None,
+                error=error
+            )
+        except Exception as e:
+            # Log the cleanup error but don't re-raise to ensure cleanup continues
+            await self.audit_logger.log_event(
+                context,
+                "module_cleanup_error",
+                {"module": module_name, "error": str(e)}
+            )
 
     def get_module_state(self, module_name: str) -> Optional[ModuleState]:
         """Get the current state of a module."""
