@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from .models import AuditContext, AuditRecord
+from datetime import datetime
 
 class AuditLogger(ABC):
     """
@@ -53,7 +54,7 @@ class AuditLogger(ABC):
     async def end(
         self,
         context: AuditContext,
-        success: bool = True,
+        success: bool,
         error: Optional[str] = None,
     ) -> None:
         """
@@ -61,7 +62,7 @@ class AuditLogger(ABC):
         
         Parameters:
             context: The audit context to finalize
-            success: Whether the operation was successful
+            success: Whether the operation was successful (required)
             error: Optional error message if unsuccessful
         """
         pass
@@ -101,22 +102,24 @@ class AuditLogger(ABC):
         """
         pass
     
-    def create_record(self, 
-                     resource_accessed: Optional[str] = None,
-                     action_requested: Optional[str] = None,
+    @abstractmethod
+    async def create_record(self, 
+                     resource_accessed: str,
+                     action_requested: str,
                      metadata: Optional[Dict[str, Any]] = None) -> AuditRecord:
         """
         Create a new audit record.
         
         Parameters:
-            resource_accessed: The resource being accessed
-            action_requested: The action being performed
+            resource_accessed: The resource being accessed (required)
+            action_requested: The action being performed (required)
             metadata: Additional execution-wide metadata
             
         Returns:
-            AuditRecord: A new audit record
+            AuditRecord: A new audit record with required fields initialized
         """
         record = AuditRecord(
+            started_at=datetime.now(),
             resource_accessed=resource_accessed,
             action_requested=action_requested,
             metadata=metadata or {}
