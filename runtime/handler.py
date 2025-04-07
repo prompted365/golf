@@ -1,4 +1,4 @@
-from typing import Any, Dict, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from ..core import AuthedManager, ModuleContext
 
 @runtime_checkable

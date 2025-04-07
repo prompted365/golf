@@ -45,9 +45,20 @@ class ModuleContext(BaseModel):
         return self.model_copy(update={"data": new_data})
     
     def with_result(self, result: ModuleResult) -> "ModuleContext":
-        """Create a new context with data from a module result."""
+        """Create a new context with data from a module result.
+        
+        Args:
+            result: The module result to apply
+            
+        Returns:
+            A new context with the result data applied
+            
+        Raises:
+            ValueError: If the result indicates failure
+        """
         if not result.success:
-            return self
+            raise ValueError(f"Module failed: {result.error}")
+            
         new_data = self.data.copy()
         new_data.update(result.data)
         return self.model_copy(update={"data": new_data})
