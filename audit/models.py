@@ -27,8 +27,20 @@ class AuditEventType(str, Enum):
     REQUEST_STARTED = "request_started"            # Request pipeline started
     REQUEST_COMPLETED = "request_completed"        # Request pipeline completed
     
+    # Module lifecycle events
+    MODULE_STARTING = "module_starting"            # Module is starting
+    MODULE_STARTED = "module_started"              # Module has started
+    MODULE_RUNNING = "module_running"              # Module is running
+    MODULE_STOPPING = "module_stopping"            # Module is stopping
+    MODULE_STOPPED = "module_stopped"              # Module has stopped
+    
+    # Module processing events
+    MODULE_PROCESSING_START = "module_processing_start"  # Module processing is starting
+    MODULE_PROCESSING_SUCCESS = "module_processing_success"  # Module processing succeeded
+    
     # Error events
     MODULE_ERROR = "module_error"                  # A module encountered an error
+    PIPELINE_ERROR = "pipeline_error"              # Pipeline encountered an error
     
     # Custom events
     CUSTOM = "custom"                              # Custom event type
