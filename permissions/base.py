@@ -268,7 +268,7 @@ class PermissionParser(ABC):
     """Combines tokenization, interpretation, and statement building."""
     
     @abstractmethod
-    async def parse_statement(self, statement_text: str) -> PermissionStatement:
+    def parse_statement(self, statement_text: str) -> PermissionStatement:
         """
         Parse a permission statement from text.
         
