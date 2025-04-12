@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from ..base import StatementBuilderInterface
+from ..base import BaseStatementBuilder
 from ..models import (
     PermissionStatement,
     Condition,
@@ -12,8 +12,8 @@ from ..models import (
 if TYPE_CHECKING:
     from .interpreter import InterpretedStatement
 
-class SimpleStatementBuilder(StatementBuilderInterface):
-    """Simple implementation of the StatementBuilderInterface."""
+class StatementBuilder(BaseStatementBuilder):
+    """Simple implementation of the BaseStatementBuilder."""
     
     def build(self, interpreted_data: "InterpretedStatement") -> PermissionStatement:
         """
