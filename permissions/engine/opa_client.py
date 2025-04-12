@@ -1,11 +1,15 @@
 """OPA client for interacting with the Open Policy Agent."""
 
 import uuid
+import logging
 import httpx
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from ..base import PermissionEngine
 from ..models import AccessRequest, AccessResult, RegoPolicy
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class OPAClient(PermissionEngine):
     """Client for interacting with the Open Policy Agent."""
@@ -83,9 +87,18 @@ class OPAClient(PermissionEngine):
                 reason=f"Policy evaluation: {effect}={decision}"
             )
         except httpx.HTTPStatusError as e:
+            error_msg = f"HTTP error {e.response.status_code} querying OPA: {str(e)}"
+            logger.error(error_msg)
             return AccessResult(
                 allowed=False,
-                reason=f"Error querying OPA: {str(e)}"
+                reason=error_msg
+            )
+        except httpx.RequestError as e:
+            error_msg = f"Request error querying OPA: {str(e)}"
+            logger.error(error_msg)
+            return AccessResult(
+                allowed=False,
+                reason=error_msg
             )
     
     async def add_policy(self, policy: RegoPolicy) -> str:
@@ -97,6 +110,9 @@ class OPAClient(PermissionEngine):
             
         Returns:
             str: The policy ID
+            
+        Raises:
+            RuntimeError: If the policy could not be added to OPA
         """
         # Generate a policy ID if not present
         policy_id = policy.metadata.get("id")
@@ -121,7 +137,13 @@ class OPAClient(PermissionEngine):
             
             return policy_id
         except httpx.HTTPStatusError as e:
-            raise RuntimeError(f"Error adding policy to OPA: {str(e)}")
+            error_msg = f"HTTP error {e.response.status_code} adding policy to OPA: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        except httpx.RequestError as e:
+            error_msg = f"Request error adding policy to OPA: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
     
     async def remove_policy(self, policy_id: str) -> bool:
         """
@@ -134,6 +156,7 @@ class OPAClient(PermissionEngine):
             bool: True if successfully removed, False otherwise
         """
         if policy_id not in self.policies:
+            logger.warning(f"Attempted to remove non-existent policy: {policy_id}")
             return False
         
         policy = self.policies[policy_id]
@@ -152,7 +175,13 @@ class OPAClient(PermissionEngine):
             del self.policies[policy_id]
             
             return True
-        except httpx.HTTPStatusError:
+        except httpx.HTTPStatusError as e:
+            error_msg = f"HTTP error {e.response.status_code} removing policy from OPA: {str(e)}"
+            logger.error(error_msg)
+            return False
+        except httpx.RequestError as e:
+            error_msg = f"Request error removing policy from OPA: {str(e)}"
+            logger.error(error_msg)
             return False
     
     async def list_policies(self) -> List[RegoPolicy]:
@@ -161,8 +190,32 @@ class OPAClient(PermissionEngine):
         
         Returns:
             List[RegoPolicy]: All policies
+            
+        Note:
+            This method attempts to fetch the current policies from OPA.
+            If the fetch fails, it returns the locally cached policies
+            but logs a warning about potential state inconsistency.
         """
-        return list(self.policies.values())
+        try:
+            # Try to get a list of policies from OPA
+            response = await self.http_client.get(f"{self.opa_url}/v1/policies")
+            response.raise_for_status()
+            
+            # If successful, sync the local cache with OPA's state
+            # This would require parsing the OPA response format
+            # and creating RegoPolicy objects from it
+            
+            # For now, just log that we're returning cached policies
+            # In a real implementation, you would parse the response and update self.policies
+            logger.info("Successfully retrieved policies from OPA.")
+            
+            # If there are differences between OPA and local state, log them
+            # This would be part of the sync logic
+            
+            return list(self.policies.values())
+        except Exception as e:
+            logger.warning(f"Failed to fetch policies from OPA, returning cached policies: {str(e)}")
+            return list(self.policies.values())
     
     async def get_policy(self, policy_id: str) -> Optional[RegoPolicy]:
         """
@@ -174,17 +227,42 @@ class OPAClient(PermissionEngine):
         Returns:
             Optional[RegoPolicy]: The policy if found, None otherwise
         """
-        return self.policies.get(policy_id)
+        # First check the local cache
+        if policy_id in self.policies:
+            return self.policies.get(policy_id)
+        
+        # If not in local cache, we could try to fetch from OPA
+        # but we'd need to know how the policy is stored in OPA
+        # For now, just return None
+        logger.info(f"Policy {policy_id} not found in local cache")
+        return None
     
-    async def check_health(self) -> bool:
+    async def check_health(self) -> Tuple[bool, Optional[str]]:
         """
         Check if OPA is healthy.
         
         Returns:
-            bool: True if OPA is healthy, False otherwise
+            Tuple[bool, Optional[str]]: (is_healthy, error_message)
+            The first element is True if OPA is healthy, False otherwise.
+            The second element contains an error message if not healthy, None otherwise.
         """
         try:
             response = await self.http_client.get(f"{self.opa_url}/health")
-            return response.status_code == 200
-        except Exception:
-            return False 
+            if response.status_code == 200:
+                return True, None
+            else:
+                error_msg = f"OPA health check failed with status code: {response.status_code}"
+                logger.warning(error_msg)
+                return False, error_msg
+        except httpx.HTTPStatusError as e:
+            error_msg = f"HTTP error during OPA health check: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+        except httpx.RequestError as e:
+            error_msg = f"Request error during OPA health check: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error during OPA health check: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg 
