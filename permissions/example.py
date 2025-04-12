@@ -4,6 +4,13 @@ import asyncio
 import json
 import os
 import sys
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Add the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
