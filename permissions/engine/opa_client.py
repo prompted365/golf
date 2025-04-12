@@ -2,7 +2,7 @@
 
 import uuid
 import httpx
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from ..base import PermissionEngine
 from ..models import AccessRequest, AccessResult, RegoPolicy
@@ -20,6 +20,18 @@ class OPAClient(PermissionEngine):
         self.opa_url = opa_url.rstrip("/")  # Remove trailing slash if present
         self.http_client = httpx.AsyncClient(timeout=10.0)
         self.policies: Dict[str, RegoPolicy] = {}
+    
+    async def __aenter__(self) -> "OPAClient":
+        """Async context manager entry."""
+        return self
+    
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
+    
+    async def close(self) -> None:
+        """Close the HTTP client and release resources."""
+        await self.http_client.aclose()
     
     async def check_access(self, request: AccessRequest) -> AccessResult:
         """
