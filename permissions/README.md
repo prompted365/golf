@@ -18,7 +18,7 @@ The Authed Permissions System is an extensible framework for defining, managing,
 from permissions import SimplePermissionTranslator
 
 translator = SimplePermissionTranslator()
-statement = await translator.parse_statement("GIVE READ ACCESS TO EMAILS WITH TAGS = WORK")
+statement = translator.parse_statement("GIVE READ ACCESS TO EMAILS WITH TAGS = WORK")
 ```
 
 ### Policy Generation
@@ -29,7 +29,7 @@ from permissions import get_default_engine, SimplePermissionTranslator
 engine = get_default_engine()
 translator = SimplePermissionTranslator()
 
-statement = await translator.parse_statement("GIVE READ ACCESS TO EMAILS TAGGED = WORK")
+statement = translator.parse_statement("GIVE READ ACCESS TO EMAILS TAGGED = WORK")
 policy = await translator.translate(statement)
 policy_id = await engine.add_policy(policy)
 ```
