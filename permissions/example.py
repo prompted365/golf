@@ -3,13 +3,13 @@
 import asyncio
 import json
 
-# Import the actual implementation classes directly
-from .engine.opa_client import OPAClient
-from .engine.policy_generator import RegoGenerator
-from .parser.parser import PermissionParser
-from .mapper import SimpleSchemaMapper  # Assuming this wasn't renamed yet
+# Use absolute imports instead of relative imports
+from permissions.engine.opa_client import OPAClient
+from permissions.engine.policy_generator import RegoGenerator
+from permissions.parser.parser import PermissionParser
+from permissions.mapper import SimpleSchemaMapper
 
-from .models import (
+from permissions.models import (
     ResourceType,
     SchemaMapping,
     FieldPath
@@ -17,7 +17,7 @@ from .models import (
 
 async def main():
     """Example of permission system usage."""
-    # Create instances directly instead of using defaults
+    # Create instances directly
     engine = OPAClient()
     parser = PermissionParser()
     mapper = SimpleSchemaMapper()
@@ -122,7 +122,7 @@ async def main():
     
     # Example 5: Accessing the specification version
     try:
-        from .spec import get_version
+        from permissions.spec import get_version
         print(f"\nSpecification version: {get_version()}")
     except ImportError:
         print("\nSpecification version module not available")
