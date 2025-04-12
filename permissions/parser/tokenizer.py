@@ -3,7 +3,7 @@
 import re
 from typing import List
 
-from ..base import TokenizerInterface
+from ..base import BaseTokenizer
 from ..models import (
     BaseCommand,
     AccessType,
@@ -13,8 +13,8 @@ from ..models import (
     LogicalOperator
 )
 
-class SimpleTokenizer(TokenizerInterface):
-    """Simple implementation of the TokenizerInterface."""
+class Tokenizer(BaseTokenizer):
+    """Simple implementation of the BaseTokenizer."""
     
     def __init__(self):
         """Initialize the tokenizer."""
