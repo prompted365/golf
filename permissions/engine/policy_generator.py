@@ -113,7 +113,7 @@ default {default_rule} = {default_value}
         
         # Add action check for each access type
         action_conditions = []
-        for access_type in statement.access_type:
+        for access_type in statement.access_types:
             action_conditions.append(f'input.action == "{access_type.value}"')
         
         if len(action_conditions) == 1:
@@ -169,9 +169,19 @@ default {default_rule} = {default_value}
         Returns:
             Optional[str]: The formatted condition or None if invalid
         """
-        field = condition["field"]
-        operator = condition["operator"]
-        value = condition["value"]
+        # Validate required fields are present
+        if not isinstance(condition, dict):
+            return None
+            
+        # Get required fields with validation
+        field = condition.get("field")
+        operator = condition.get("operator")
+        value = condition.get("value")
+        
+        # Skip formatting if any required fields are missing
+        if field is None or operator is None or value is None:
+            return None
+            
         field_type = condition.get("field_type")
         
         # Format field

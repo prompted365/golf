@@ -117,7 +117,7 @@ class AccessResult(BaseModel):
 class PermissionStatement(BaseModel):
     """Represents a structured permission statement."""
     command: BaseCommand            # GIVE or DENY
-    access_type: List[AccessType]   # Types of access (e.g., [READ, WRITE])
+    access_types: List[AccessType]   # Types of access (e.g., [READ, WRITE])
     resource_type: ResourceType     # Type of resource (e.g., EMAILS)
     conditions: List[Condition] = Field(default_factory=list)  # Conditions for the permission
     logical_operator: LogicalOperator = LogicalOperator.AND  # How conditions combine

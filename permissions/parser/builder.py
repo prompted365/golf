@@ -50,7 +50,7 @@ class StatementBuilder(BaseStatementBuilder):
         # Create and return the PermissionStatement
         return PermissionStatement(
             command=interpreted_data["command"],
-            access_type=interpreted_data["access_types"],
+            access_types=interpreted_data["access_types"],
             resource_type=interpreted_data["resource_type"],
             conditions=conditions,
             logical_operator=interpreted_data.get("logical_operator", LogicalOperator.AND)
