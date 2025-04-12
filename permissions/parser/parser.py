@@ -3,41 +3,41 @@
 from typing import Optional
 
 from ..base import (
-    PermissionParser, 
-    TokenizerInterface, 
-    InterpreterInterface, 
-    StatementBuilderInterface,
-    SchemaProviderInterface
+    PermissionParser as BasePermissionParser, 
+    BaseTokenizer, 
+    BaseInterpreter, 
+    BaseStatementBuilder,
+    BaseSchemaProvider
 )
 from ..models import PermissionStatement
-from .tokenizer import SimpleTokenizer
-from .interpreter import SimpleInterpreter
-from .builder import SimpleStatementBuilder
+from .tokenizer import Tokenizer
+from .interpreter import Interpreter
+from .builder import StatementBuilder
 
-class SimplePermissionParser(PermissionParser):
+class PermissionParser(BasePermissionParser):
     """Simple implementation of the PermissionParser interface."""
     
     def __init__(
         self,
-        tokenizer: Optional[TokenizerInterface] = None,
-        interpreter: Optional[InterpreterInterface] = None,
-        builder: Optional[StatementBuilderInterface] = None,
-        schema_provider: Optional[SchemaProviderInterface] = None
+        tokenizer: Optional[BaseTokenizer] = None,
+        interpreter: Optional[BaseInterpreter] = None,
+        builder: Optional[BaseStatementBuilder] = None,
+        schema_provider: Optional[BaseSchemaProvider] = None
     ):
         """
         Initialize the permission parser with optional components.
         
         Args:
-            tokenizer: The tokenizer to use (defaults to SimpleTokenizer)
-            interpreter: The interpreter to use (defaults to SimpleInterpreter)
-            builder: The statement builder to use (defaults to SimpleStatementBuilder)
+            tokenizer: The tokenizer to use (defaults to Tokenizer)
+            interpreter: The interpreter to use (defaults to Interpreter)
+            builder: The statement builder to use (defaults to StatementBuilder)
             schema_provider: Schema provider for field mapping and type information
                              (will be passed to interpreter if no interpreter is provided)
         """
-        self.tokenizer = tokenizer or SimpleTokenizer()
+        self.tokenizer = tokenizer or Tokenizer()
         # If no interpreter is provided, create one with the schema_provider
-        self.interpreter = interpreter or SimpleInterpreter(schema_provider=schema_provider)
-        self.builder = builder or SimpleStatementBuilder()
+        self.interpreter = interpreter or Interpreter(schema_provider=schema_provider)
+        self.builder = builder or StatementBuilder()
         self.schema_provider = schema_provider
     
     async def parse_statement(self, statement_text: str) -> PermissionStatement:
