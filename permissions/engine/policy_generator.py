@@ -14,7 +14,7 @@ from ..models import (
     LogicalOperator
 )
 
-class RegoPolicyGenerator(PolicyGenerator):
+class RegoGenerator(PolicyGenerator):
     """Generates Rego policies from permission statements."""
     
     def __init__(self, templates_dir: Optional[str] = None):
