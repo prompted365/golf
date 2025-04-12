@@ -2,8 +2,15 @@
 
 import asyncio
 import json
+import os
+import sys
 
-# Use absolute imports instead of relative imports
+# Add the parent directory to sys.path
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+# Now we can import from permissions directly
 from permissions.engine.opa_client import OPAClient
 from permissions.engine.policy_generator import RegoGenerator
 from permissions.parser.parser import PermissionParser
