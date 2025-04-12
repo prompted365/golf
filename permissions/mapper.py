@@ -110,9 +110,11 @@ class SimpleSchemaMapper(SchemaMapper):
                 if prop in resource_properties:
                     # Simple transformation rules, can be extended
                     if transform_rule == "to_upper":
-                        resource_properties[prop] = resource_properties[prop].upper()
+                        if isinstance(resource_properties[prop], str):
+                            resource_properties[prop] = resource_properties[prop].upper()
                     elif transform_rule == "to_lower":
-                        resource_properties[prop] = resource_properties[prop].lower()
+                        if isinstance(resource_properties[prop], str):
+                            resource_properties[prop] = resource_properties[prop].lower()
                     elif transform_rule == "to_list" and isinstance(resource_properties[prop], str):
                         resource_properties[prop] = [item.strip() for item in resource_properties[prop].split(",")]
                     elif transform_rule.startswith("format:"):
