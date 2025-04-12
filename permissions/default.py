@@ -1,15 +1,15 @@
 """Default implementation of the permission system."""
 
 from .engine.opa_client import OPAClient
-from .engine.policy_generator import RegoPolicyGenerator
-from .parser.parser import SimplePermissionParser
+from .engine.policy_generator import RegoGenerator
+from .parser.parser import PermissionParser
 from .mapper import SimpleSchemaMapper
 
 # Create default instances
 default_engine = OPAClient()
-default_translator = SimplePermissionParser()
+default_translator = PermissionParser()
 default_mapper = SimpleSchemaMapper()
-default_policy_generator = RegoPolicyGenerator()
+default_policy_generator = RegoGenerator()
 
 # Function to get default engine
 def get_default_engine():
