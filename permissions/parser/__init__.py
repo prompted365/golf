@@ -1,13 +1,14 @@
 """Parser module for permission statements."""
 
-from .tokenizer import SimpleTokenizer
-from .interpreter import SimpleInterpreter
-from .builder import SimpleStatementBuilder
-from .parser import SimplePermissionParser
+from .tokenizer import Tokenizer
+from .interpreter import Interpreter, SchemaProvider
+from .builder import StatementBuilder
+from .parser import PermissionParser
 
 __all__ = [
-    "SimpleTokenizer",
-    "SimpleInterpreter",
-    "SimpleStatementBuilder",
-    "SimplePermissionParser"
+    "Tokenizer",
+    "Interpreter",
+    "SchemaProvider",
+    "StatementBuilder",
+    "PermissionParser"
 ] 
