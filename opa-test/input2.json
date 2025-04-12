@@ -1,0 +1,10 @@
+{
+    "input": {
+        "method": "GET",
+        "path": ["resources", "resource2"],
+        "user": {
+            "id": "user1",
+            "role": "user"
+        }
+    }
+} 
