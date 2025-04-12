@@ -41,6 +41,9 @@ class OPAClient(PermissionEngine):
         """
         Check if a requested access is allowed based on OPA policies.
         
+        The effect field in AccessRequest ("ALLOW"/"DENY") corresponds to
+        BaseCommand.GIVE/BaseCommand.DENY from permission statements.
+        
         Args:
             request: The access request to check
             
@@ -61,6 +64,7 @@ class OPAClient(PermissionEngine):
         
         # Determine query path based on resource type and effect
         resource_type = request.resource.type.value.lower()
+        # Effect values "ALLOW"/"DENY" correspond to BaseCommand.GIVE/BaseCommand.DENY
         effect = request.effect.lower() if request.effect else "allow"
         
         query_path = f"/v1/data/authed/permissions/{resource_type}/{effect}"
