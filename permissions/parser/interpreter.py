@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Optional, TypedDict
 
-from ..base import InterpreterInterface, SchemaProviderInterface
+from ..base import BaseInterpreter, BaseSchemaProvider
 from ..models import (
     BaseCommand,
     AccessType,
@@ -29,8 +29,8 @@ class InterpretedStatement(TypedDict, total=False):
     conditions: List[ConditionDict]
     integration_data: Dict[str, Any]
 
-class DefaultSchemaProvider(SchemaProviderInterface):
-    """Default implementation of SchemaProviderInterface with hardcoded mappings."""
+class SchemaProvider(BaseSchemaProvider):
+    """Default implementation of BaseSchemaProvider with hardcoded mappings."""
     
     def map_field(self, helper: StructuralHelper, field_token: str, resource_type: ResourceType) -> Optional[str]:
         """Map a field token based on the structural helper and resource type."""
@@ -69,17 +69,17 @@ class DefaultSchemaProvider(SchemaProviderInterface):
         # Return empty metadata for now
         return {}
 
-class SimpleInterpreter(InterpreterInterface):
-    """Simple implementation of the InterpreterInterface."""
+class Interpreter(BaseInterpreter):
+    """Simple implementation of the BaseInterpreter."""
     
-    def __init__(self, schema_provider: Optional[SchemaProviderInterface] = None):
+    def __init__(self, schema_provider: Optional[BaseSchemaProvider] = None):
         """
         Initialize the interpreter with an optional schema provider.
         
         Args:
             schema_provider: Optional SchemaProvider for field mapping and type information
         """
-        self.schema_provider = schema_provider or DefaultSchemaProvider()
+        self.schema_provider = schema_provider or SchemaProvider()
     
     def interpret(self, tokens: List[str]) -> InterpretedStatement:
         """
