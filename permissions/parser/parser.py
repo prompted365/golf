@@ -38,9 +38,8 @@ class PermissionParser(BasePermissionParser):
         # If no interpreter is provided, create one with the schema_provider
         self.interpreter = interpreter or Interpreter(schema_provider=schema_provider)
         self.builder = builder or StatementBuilder()
-        self.schema_provider = schema_provider
     
-    async def parse_statement(self, statement_text: str) -> PermissionStatement:
+    def parse_statement(self, statement_text: str) -> PermissionStatement:
         """
         Parse a permission statement from text.
         
