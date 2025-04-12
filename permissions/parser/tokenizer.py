@@ -26,7 +26,7 @@ class SimpleTokenizer(TokenizerInterface):
             "structural_helper": self._create_enum_pattern_with_aliases(StructuralHelper),
             "logical_operator": self._create_enum_pattern(LogicalOperator),
             "condition_operator": self._create_enum_pattern(ConditionOperator),
-            "quoted_string": r'"([^"]*)"',  # Match anything in double quotes
+            "quoted_string": r'"((?:\\.|[^"\\])*)"',  # Match anything in double quotes, including escaped chars
             "non_quoted_string": r'[\w\.@_-]+',  # Match word characters, dots, @, _, -
         }
     
@@ -87,7 +87,10 @@ class SimpleTokenizer(TokenizerInterface):
             # First try to match quoted strings
             quoted_match = re.match(f'^{self.patterns["quoted_string"]}', remaining)
             if quoted_match:
-                tokens.append(quoted_match.group(1))  # Add without quotes
+                # Process escaped characters in the string
+                quoted_content = quoted_match.group(1)
+                processed_content = re.sub(r'\\(.)', r'\1', quoted_content)  # Replace \x with x
+                tokens.append(processed_content)
                 remaining = remaining[quoted_match.end():]
                 matched = True
                 continue
@@ -96,6 +99,12 @@ class SimpleTokenizer(TokenizerInterface):
             if remaining.upper().startswith("ASSIGNED TO"):
                 tokens.append("ASSIGNED_TO")  # Use enum value internally
                 remaining = remaining[len("ASSIGNED TO"):]
+                matched = True
+                continue
+                
+            if remaining.upper().startswith("ACCESS TO"):
+                tokens.append("ACCESS_TO")  # Use enum value internally
+                remaining = remaining[len("ACCESS TO"):]
                 matched = True
                 continue
             
@@ -130,6 +139,8 @@ class SimpleTokenizer(TokenizerInterface):
                 helper_token = helper_match.group(1).upper()
                 if helper_token == "ASSIGNED TO":
                     helper_token = "ASSIGNED_TO"
+                elif helper_token == "ACCESS TO":
+                    helper_token = "ACCESS_TO"
                 tokens.append(helper_token)
                 remaining = remaining[helper_match.end():]
                 matched = True
@@ -151,13 +162,7 @@ class SimpleTokenizer(TokenizerInterface):
                 matched = True
                 continue
             
-            # Handle special tokens like ACCESS TO, &
-            if remaining.startswith("ACCESS TO"):
-                tokens.append("ACCESS TO")
-                remaining = remaining[len("ACCESS TO"):]
-                matched = True
-                continue
-            
+            # Handle special tokens like &
             if remaining.startswith("&"):
                 tokens.append("&")
                 remaining = remaining[1:]
