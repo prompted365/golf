@@ -1,9 +1,8 @@
 """OPA client for interacting with the Open Policy Agent."""
 
-import json
 import uuid
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 
 from ..base import PermissionEngine
 from ..models import AccessRequest, AccessResult, RegoPolicy
