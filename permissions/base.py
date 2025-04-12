@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-# Import DataType and StructuralHelper for proper type hinting in SchemaProviderInterface
+# Import DataType and StructuralHelper for proper type hinting in SchemaProvider
 from .models import (
     AccessRequest,
     AccessResult,
@@ -216,7 +216,7 @@ class SchemaMapper(ABC):
         """
         ...
 
-class TokenizerInterface(ABC):
+class BaseTokenizer(ABC):
     """Interface for tokenizing permission statements."""
     
     @abstractmethod
@@ -232,7 +232,7 @@ class TokenizerInterface(ABC):
         """
         ...
 
-class InterpreterInterface(ABC):
+class BaseInterpreter(ABC):
     """Interface for interpreting tokenized statements."""
     
     @abstractmethod
@@ -248,7 +248,7 @@ class InterpreterInterface(ABC):
         """
         ...
 
-class StatementBuilderInterface(ABC):
+class BaseStatementBuilder(ABC):
     """Interface for building structured permission statements."""
     
     @abstractmethod
@@ -320,7 +320,7 @@ class PolicyGenerator(ABC):
         """
         ...
 
-class SchemaProviderInterface(ABC):
+class BaseSchemaProvider(ABC):
     """Interface for providing schema information about resources, fields, and types."""
     
     @abstractmethod
