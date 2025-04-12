@@ -1,5 +1,6 @@
 # Core dependencies
 pydantic>=2.11.0  # For data validation and settings management
+httpx>=0.25.0     # For HTTP client communication with OPA
 
 # Testing dependencies
 pytest>=7.4.0
