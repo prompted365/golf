@@ -1,10 +1,17 @@
 """Example usage of the permission system."""
 
 import asyncio
+import json
+from typing import Dict, Any
+
 from .default import get_default_engine, get_default_translator, get_default_mapper
 from .models import (
+    AccessRequest, 
+    Resource, 
+    AccessType, 
     ResourceType,
-    SchemaMapping
+    SchemaMapping,
+    FieldPath
 )
 
 async def main():
@@ -31,18 +38,21 @@ async def main():
     policy_id = await engine.add_policy(policy)
     print(f"Added policy with ID: {policy_id}")
     
-    # Example 2: Schema mapping for Gmail API
+    # Example 2: Schema mapping for Gmail API with nested field paths
     gmail_mapping = SchemaMapping(
         source_api="gmail",
         resource_type=ResourceType.EMAILS,
         property_mappings={
-            "tags": "labels",
-            "sender": "from",
-            "recipient": "to",
-            "subject": "subject"
+            "tags": FieldPath("labelIds"),
+            "sender": FieldPath("payload.headers.from"),
+            "recipient": FieldPath("payload.headers.to"),
+            "subject": FieldPath("payload.headers.subject"),
+            "sender_domain": FieldPath("payload.headers.from_domain"),
+            "has_attachments": FieldPath("payload.hasAttachments")
         },
         transformation_rules={
-            "tags": "to_list"  # Convert comma-separated string to list
+            "tags": "to_list",  # Convert comma-separated string to list
+            "sender_domain": "format:{sender.split('@')[1]}"  # Extract domain part
         }
     )
     
@@ -50,38 +60,67 @@ async def main():
     mapping_id = await mapper.add_mapping(gmail_mapping)
     print(f"Added mapping with ID: {mapping_id}")
     
-    # Example 3: Transform an external request to internal format
+    # Example 3: Transform a nested Gmail email request to internal format
     gmail_request = {
         "action": "read",
         "resource_type": "emails",
-        "from": "john@example.com",
-        "to": "mary@example.com",
-        "subject": "Weekly Meeting",
-        "labels": "WORK,IMPORTANT"
+        "id": "msg123",
+        "threadId": "thread456",
+        "payload": {
+            "headers": {
+                "from": "john@example.com",
+                "to": "mary@example.com",
+                "subject": "Weekly Meeting"
+            },
+            "body": {
+                "data": "Hello, let's discuss the project progress."
+            },
+            "hasAttachments": True
+        },
+        "labelIds": "WORK,IMPORTANT"
     }
+    
+    # Pretty print the Gmail request
+    print("\nGmail API request (with nested fields):")
+    print(json.dumps(gmail_request, indent=2))
     
     # Transform request
     internal_request = await mapper.transform_request("gmail", gmail_request)
-    print(f"Transformed request: {internal_request}")
+    print("\nTransformed request:")
+    print(json.dumps(internal_request.dict(), indent=2))
     
-    # Check access
+    # Check access using transformed request
     result = await engine.check_access(internal_request)
-    print(f"Access result: {result}")
+    print(f"\nAccess result: {result}")
     
-    # Example 4: Another request that should be denied
+    # Example 4: Another request that should be denied (personal email)
     personal_email_request = {
         "action": "read",
         "resource_type": "emails",
-        "from": "friend@example.com",
-        "to": "mary@example.com",
-        "subject": "Dinner tonight?",
-        "labels": "PERSONAL"
+        "id": "msg789",
+        "threadId": "thread999",
+        "payload": {
+            "headers": {
+                "from": "friend@personal.com",
+                "to": "mary@example.com",
+                "subject": "Dinner tonight?"
+            },
+            "body": {
+                "data": "Hey, are you free for dinner tonight?"
+            },
+            "hasAttachments": False
+        },
+        "labelIds": "PERSONAL"
     }
     
     # Transform and check
     internal_request = await mapper.transform_request("gmail", personal_email_request)
     result = await engine.check_access(internal_request)
-    print(f"Access result for personal email: {result}")
+    print(f"\nAccess result for personal email: {result}")
+    
+    # Example 5: Accessing the specification version
+    from .spec import get_version
+    print(f"\nSpecification version: {get_version()}")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
