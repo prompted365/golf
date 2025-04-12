@@ -1,6 +1,6 @@
 """Statement builder component for creating structured permission statements."""
 
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 
 from ..base import StatementBuilderInterface
 from ..models import (
@@ -9,10 +9,13 @@ from ..models import (
     LogicalOperator
 )
 
+if TYPE_CHECKING:
+    from .interpreter import InterpretedStatement
+
 class SimpleStatementBuilder(StatementBuilderInterface):
     """Simple implementation of the StatementBuilderInterface."""
     
-    def build(self, interpreted_data: Dict[str, Any]) -> PermissionStatement:
+    def build(self, interpreted_data: "InterpretedStatement") -> PermissionStatement:
         """
         Build a structured permission statement from interpreted data.
         
