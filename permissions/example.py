@@ -30,9 +30,18 @@ async def main():
         mapper = SimpleSchemaMapper()
         policy_generator = RegoGenerator()
         
+        # First check OPA health
+        print("Checking OPA health...")
+        is_healthy, error_msg = await engine.check_health()
+        if is_healthy:
+            print("OPA is healthy and ready to accept policies.")
+        else:
+            print(f"OPA health check failed: {error_msg}")
+            print("Continuing with examples, but OPA operations may fail.")
+        
         # Example 1: Creating a permission statement and converting to Rego policy
         statement_text = "GIVE READ ACCESS TO EMAILS WITH TAGS = WORK"
-        print(f"Permission statement: {statement_text}")
+        print(f"\nPermission statement: {statement_text}")
         
         # Parse the statement
         statement = await parser.parse_statement(statement_text)
@@ -44,9 +53,12 @@ async def main():
         print(policy.policy_content)
         
         # Add policy to the engine
-        policy_id = await engine.add_policy(policy)
-        print(f"Added policy with ID: {policy_id}")
-        
+        try:
+            policy_id = await engine.add_policy(policy)
+            print(f"Added policy with ID: {policy_id}")
+        except RuntimeError as e:
+            print(f"Failed to add policy: {e}")
+            
         # Example 2: Schema mapping for Gmail API with nested field paths
         gmail_mapping = SchemaMapping(
             source_api="gmail",
@@ -133,6 +145,12 @@ async def main():
             print(f"\nSpecification version: {get_version()}")
         except ImportError:
             print("\nSpecification version module not available")
+        
+        # Example 6: List all policies and display them
+        print("\nListing all policies:")
+        policies = await engine.list_policies()
+        for i, policy in enumerate(policies):
+            print(f"Policy {i+1}: {policy.package_name}")
         
         # The engine's HTTP client will be automatically closed when exiting the async with block
 
