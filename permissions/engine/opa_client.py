@@ -124,14 +124,14 @@ class OPAClient(PermissionEngine):
             policy_id = str(uuid.uuid4())
             policy.metadata["id"] = policy_id
         
-        # Extract package name for the API path
-        package_parts = policy.package_name.split(".")
-        policy_path = "/".join(package_parts)
+        # Use a simpler policy path name derived from the package
+        # OPA expects a policy name that is different from the package path
+        simple_policy_path = policy.package_name.split(".")[-1]  # Use last segment
         
         # Add policy to OPA
         try:
             response = await self.http_client.put(
-                f"{self.opa_url}/v1/policies/{policy_path}",
+                f"{self.opa_url}/v1/policies/{simple_policy_path}",
                 content=policy.policy_content
             )
             response.raise_for_status()
@@ -165,13 +165,12 @@ class OPAClient(PermissionEngine):
         
         policy = self.policies[policy_id]
         
-        # Extract package name for the API path
-        package_parts = policy.package_name.split(".")
-        policy_path = "/".join(package_parts)
+        # Use a simpler policy path name, consistent with add_policy
+        simple_policy_path = policy.package_name.split(".")[-1]
         
         try:
             response = await self.http_client.delete(
-                f"{self.opa_url}/v1/policies/{policy_path}"
+                f"{self.opa_url}/v1/policies/{simple_policy_path}"
             )
             response.raise_for_status()
             
