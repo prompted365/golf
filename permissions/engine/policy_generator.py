@@ -49,9 +49,9 @@ class RegoGenerator(PolicyGenerator):
 
 default {default_rule} = {default_value}
 
-{rule_type} {
+{rule_type} {{
     {conditions}
-}
+}}
 """
     
     async def get_template(self, template_name: str) -> str:
