@@ -44,7 +44,7 @@ async def main():
         print(f"\nPermission statement: {statement_text}")
         
         # Parse the statement
-        statement = await parser.parse_statement(statement_text)
+        statement = parser.parse_statement(statement_text)
         print(f"Parsed statement: {statement}")
         
         # Generate a Rego policy using the policy generator
