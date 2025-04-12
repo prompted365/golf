@@ -1,6 +1,6 @@
 """Main parser component that combines tokenizer, interpreter, and builder."""
 
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from ..base import (
     PermissionParser as BasePermissionParser, 
@@ -22,7 +22,8 @@ class PermissionParser(BasePermissionParser):
         tokenizer: Optional[BaseTokenizer] = None,
         interpreter: Optional[BaseInterpreter] = None,
         builder: Optional[BaseStatementBuilder] = None,
-        schema_provider: Optional[BaseSchemaProvider] = None
+        schema_provider: Optional[BaseSchemaProvider] = None,
+        integration_mappings: Optional[Dict[str, Dict[str, Any]]] = None
     ):
         """
         Initialize the permission parser with optional components.
@@ -33,10 +34,14 @@ class PermissionParser(BasePermissionParser):
             builder: The statement builder to use (defaults to StatementBuilder)
             schema_provider: Schema provider for field mapping and type information
                              (will be passed to interpreter if no interpreter is provided)
+            integration_mappings: Dictionary of integration mappings to use if no schema_provider is provided
         """
         self.tokenizer = tokenizer or Tokenizer()
-        # If no interpreter is provided, create one with the schema_provider
-        self.interpreter = interpreter or Interpreter(schema_provider=schema_provider)
+        # If no interpreter is provided, create one with the schema_provider and integration_mappings
+        self.interpreter = interpreter or Interpreter(
+            schema_provider=schema_provider,
+            integration_mappings=integration_mappings
+        )
         self.builder = builder or StatementBuilder()
     
     def parse_statement(self, statement_text: str) -> PermissionStatement:
