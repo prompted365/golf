@@ -1,7 +1,6 @@
 """Interpreter component for permission statements."""
 
-from typing import List, Dict, Any, Optional
-from enum import Enum
+from typing import List, Dict, Any
 
 from ..base import InterpreterInterface
 from ..models import (
