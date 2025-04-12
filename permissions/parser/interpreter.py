@@ -1,8 +1,8 @@
 """Interpreter component for permission statements."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, TypedDict
 
-from ..base import InterpreterInterface
+from ..base import InterpreterInterface, SchemaProviderInterface
 from ..models import (
     BaseCommand,
     AccessType,
@@ -13,10 +13,75 @@ from ..models import (
     DataType
 )
 
+class ConditionDict(TypedDict):
+    """Type definition for a condition dictionary."""
+    field: str
+    operator: ConditionOperator
+    value: Any
+    field_type: DataType
+    logical_operator: LogicalOperator
+
+class InterpretedStatement(TypedDict, total=False):
+    """Type definition for the interpreted statement returned by the interpreter."""
+    command: BaseCommand
+    access_types: List[AccessType]
+    resource_type: ResourceType
+    conditions: List[ConditionDict]
+    integration_data: Dict[str, Any]
+
+class DefaultSchemaProvider(SchemaProviderInterface):
+    """Default implementation of SchemaProviderInterface with hardcoded mappings."""
+    
+    def map_field(self, helper: StructuralHelper, field_token: str, resource_type: ResourceType) -> Optional[str]:
+        """Map a field token based on the structural helper and resource type."""
+        # Simple default mapping
+        if helper == StructuralHelper.TAGGED:
+            return "tags"
+        elif helper == StructuralHelper.NAMED:
+            return "name"
+        elif helper == StructuralHelper.ASSIGNED_TO:
+            return "assignee"
+        elif helper == StructuralHelper.FROM:
+            return "sender"
+        elif helper == StructuralHelper.WITH:
+            # For WITH, use the field token as is
+            return field_token.lower()
+        else:
+            return field_token.lower()
+    
+    def get_field_type(self, field: str, resource_type: ResourceType) -> Optional[DataType]:
+        """Infer the data type of a field based on its name and resource type."""
+        # Field-based inference
+        if field in ["tags"]:
+            return DataType.TAGS
+        elif field in ["assignee", "owner", "user"]:
+            return DataType.USER
+        elif field in ["email", "sender", "recipient"]:
+            return DataType.EMAIL_ADDRESS
+        elif field in ["date", "created_date", "updated_date"]:
+            return DataType.DATETIME
+        elif field in ["domain"]:
+            return DataType.DOMAIN
+        return None
+    
+    def get_resource_metadata(self, resource_type: ResourceType) -> Dict[str, Any]:
+        """Get metadata about a resource type."""
+        # Return empty metadata for now
+        return {}
+
 class SimpleInterpreter(InterpreterInterface):
     """Simple implementation of the InterpreterInterface."""
     
-    def interpret(self, tokens: List[str]) -> Dict[str, Any]:
+    def __init__(self, schema_provider: Optional[SchemaProviderInterface] = None):
+        """
+        Initialize the interpreter with an optional schema provider.
+        
+        Args:
+            schema_provider: Optional SchemaProvider for field mapping and type information
+        """
+        self.schema_provider = schema_provider or DefaultSchemaProvider()
+    
+    def interpret(self, tokens: List[str]) -> InterpretedStatement:
         """
         Interpret tokenized permission statement.
         
@@ -24,17 +89,18 @@ class SimpleInterpreter(InterpreterInterface):
             tokens: The tokens to interpret
             
         Returns:
-            Dict[str, Any]: Structured representation of the statement
+            InterpretedStatement: Structured representation of the statement with proper typing
         """
         if not tokens:
             raise ValueError("No tokens to interpret")
         
         # Initialize the result structure
-        result = {
+        result: Dict[str, Any] = {
             "command": None,
             "access_types": [],
             "resource_type": None,
             "conditions": [],
+            "integration_data": {},
             # Note: In the future, consider implementing a tree structure for nested logical expressions
             # This flat list approach works well for simple AND/OR combinations but has limitations
             # for complex nested logic
@@ -94,6 +160,9 @@ class SimpleInterpreter(InterpreterInterface):
                 # Expect a resource type (EMAILS, PROJECTS, etc.)
                 try:
                     result["resource_type"] = ResourceType(token)
+                    # If we have a schema provider, initialize any resource-specific data
+                    if self.schema_provider:
+                        result["integration_data"] = self.schema_provider.get_resource_metadata(result["resource_type"])
                     state = "CONDITION_START"
                 except ValueError:
                     raise ValueError(f"Expected a resource type, got {token}")
@@ -118,7 +187,7 @@ class SimpleInterpreter(InterpreterInterface):
             
             elif state == "CONDITION_FIELD":
                 # Field name for the condition
-                current_condition["field"] = self._map_field_from_helper(current_condition["helper"], token)
+                current_condition["field"] = self._map_field_from_helper(current_condition["helper"], token, result["resource_type"])
                 state = "CONDITION_OPERATOR"
             
             elif state == "CONDITION_OPERATOR":
@@ -163,12 +232,12 @@ class SimpleInterpreter(InterpreterInterface):
                 current_condition["value"] = token
                 
                 # Add the complete condition to the result
-                field_type = self._infer_data_type(current_condition["field"], token)
+                field_type = self._infer_data_type(current_condition["field"], token, result["resource_type"], current_condition["field"])
                 
                 result["conditions"].append({
                     "field": current_condition["field"],
                     "operator": current_condition["operator"],
-                    "value": self._convert_value(token, field_type),
+                    "value": self._convert_value(token, field_type, result["resource_type"], current_condition["field"]),
                     "field_type": field_type,
                     "logical_operator": current_logical_op  # Save the logical operator with each condition
                 })
@@ -193,57 +262,56 @@ class SimpleInterpreter(InterpreterInterface):
             
             i += 1
         
+        # Ensure all required fields are present for proper typing
+        if "integration_data" not in result:
+            result["integration_data"] = {}
+            
+        # Return the typed result
         return result
     
-    def _map_field_from_helper(self, helper: StructuralHelper, field_token: str) -> str:
+    def _map_field_from_helper(self, helper: StructuralHelper, field_token: str, resource_type: Optional[ResourceType] = None) -> str:
         """
-        Map a field token based on the structural helper.
+        Map a field token based on the structural helper and resource type.
         
         Args:
             helper: The structural helper
             field_token: The field token
+            resource_type: The optional resource type for schema lookup
             
         Returns:
             str: The mapped field name
         """
-        if helper == StructuralHelper.TAGGED:
-            return "tags"
-        elif helper == StructuralHelper.NAMED:
-            return "name"
-        elif helper == StructuralHelper.ASSIGNED_TO:
-            return "assignee"
-        elif helper == StructuralHelper.FROM:
-            return "sender"
-        elif helper == StructuralHelper.WITH:
-            # For WITH, use the field token as is
-            return field_token.lower()
-        else:
-            return field_token.lower()
+        # Use schema provider for mapping
+        if resource_type:
+            return self.schema_provider.map_field(helper, field_token, resource_type) or field_token.lower()
+        return field_token.lower()
     
-    def _infer_data_type(self, field: str, value: str) -> DataType:
+    def _infer_data_type(self, field: str, value: str, resource_type: Optional[ResourceType] = None, field_name: Optional[str] = None) -> DataType:
         """
-        Infer the data type of a field based on its name and value.
+        Infer the data type of a field based on its name, value, and resource type.
         
         Args:
             field: The field name
             value: The field value
+            resource_type: The optional resource type for schema lookup
+            field_name: Optional alternative field name (useful when field is a derived/mapped value)
             
         Returns:
             DataType: The inferred data type
         """
-        # Field-based inference
-        if field in ["tags"]:
-            return DataType.TAGS
-        elif field in ["assignee", "owner", "user"]:
-            return DataType.USER
-        elif field in ["email", "sender", "recipient"]:
-            return DataType.EMAIL_ADDRESS
-        elif field in ["date", "created_date", "updated_date"]:
-            return DataType.DATETIME
-        elif field in ["domain"]:
-            return DataType.DOMAIN
+        # Use schema provider for type inference
+        if resource_type:
+            schema_type = self.schema_provider.get_field_type(field, resource_type)
+            if schema_type:
+                return schema_type
+                
+            # Try with the alternative field name if provided and different
+            if field_name and field_name != field:
+                schema_type = self.schema_provider.get_field_type(field_name, resource_type)
+                if schema_type:
+                    return schema_type
         
-        # Value-based inference
+        # Fallback to value-based inference
         if value.lower() in ["true", "false"]:
             return DataType.BOOLEAN
         
@@ -262,17 +330,20 @@ class SimpleInterpreter(InterpreterInterface):
                 # Default to string
                 return DataType.STRING
     
-    def _convert_value(self, value: str, data_type: DataType) -> Any:
+    def _convert_value(self, value: str, data_type: DataType, resource_type: Optional[ResourceType] = None, field: Optional[str] = None) -> Any:
         """
         Convert a value string to its appropriate type.
         
         Args:
             value: The value to convert
             data_type: The target data type
+            resource_type: Optional resource type for schema-specific conversion
+            field: Optional field name for schema-specific conversion
             
         Returns:
             Any: The converted value
         """
+        # For more complex conversions, we could use the schema provider and resource_type/field
         if data_type == DataType.BOOLEAN:
             return value.lower() == "true"
         elif data_type == DataType.NUMBER:
