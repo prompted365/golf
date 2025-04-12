@@ -1,6 +1,6 @@
 # Official Low-Level Specification
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 
 **Status:** Draft
 
@@ -238,6 +238,12 @@ To ensure robust interpretation of user input, all implementations **MUST** adhe
 
 ### 4.4 Permission Parser Module
 
+The permission parser module is responsible for converting a semi-structured natural language statement into a structured internal representation (`PermissionStatement`). It composes three layers:
+
+1. **Tokenizer** – breaks the input string into canonical tokens.
+2. **Interpreter** – identifies and organizes the logical structure (e.g., command, resource type, conditions).
+3. **Statement Builder** – constructs a complete `PermissionStatement` object with appropriate typing.
+
 #### 4.4.1 Requirements
 
 Implementations of the parser module MUST:
@@ -248,6 +254,15 @@ Implementations of the parser module MUST:
 - Be modular: each component (tokenizer, interpreter, builder) MUST be replaceable.
 - Perform field resolution and type inference using integration schema mappings (from §3.2).
 - Interpreter implementations MUST NOT hardcode field-type associations or semantic field mappings.
+
+#### 4.4.2 Asynchronous Support
+
+The parser's main entrypoint MAY be implemented as an `async def parse_statement()` coroutine to support future extensions such as:
+  - Asynchronous schema resolution from remote metadata sources
+  - On-demand integration parameter fetching
+  - Hybrid or AI-based natural language parsing with external APIs
+
+Implementations SHOULD keep this method synchronous unless such I/O operations are needed.
 
 ---
 
@@ -385,5 +400,11 @@ permissions/
   - Added clear requirements for field mapping and type resolution
   - Added new Permission Parser Module section (Section 4.4) with explicit requirements
   - Added prohibition against hardcoding field-type associations in interpreters
+- **v0.2.1 (Draft)** – Clarified asynchronous parser interface:
+  - Expanded Section 4.4 with description of the parser's three-layer architecture
+  - Added Section 4.4.2 about asynchronous support for the parser
+  - Enhanced Section 4.4.2 with detailed documentation about the optional async nature of the parser
+  - Provided rationale and use cases for when async interfaces are appropriate
+  - Added guidance for implementers on when to use sync vs. async methods
 
 This concludes the normative low-level specification. All future modifications **SHOULD** update the version and document changes in this final section. 
