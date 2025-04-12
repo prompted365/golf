@@ -17,6 +17,10 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Import integrations first to ensure they're registered
+from permissions.integrations import gmail, linear
+from permissions.integrations import get_integration_mappings
+
 # Now we can import from permissions directly
 from permissions.engine.opa_client import OPAClient
 from permissions.engine.policy_generator import RegoGenerator
@@ -31,9 +35,13 @@ from permissions.models import (
 
 async def main():
     """Example of permission system usage."""
-    # Create instances directly
+    # Get integration mappings
+    integration_mappings = get_integration_mappings()
+    print(f"Loaded {len(integration_mappings)} integrations: {', '.join(integration_mappings.keys())}")
+
+    # Create instances directly with integration mappings
     async with OPAClient() as engine:
-        parser = PermissionParser()
+        parser = PermissionParser(integration_mappings=integration_mappings)
         mapper = SimpleSchemaMapper()
         policy_generator = RegoGenerator()
         
