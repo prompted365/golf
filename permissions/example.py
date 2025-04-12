@@ -108,7 +108,7 @@ async def main():
         # Transform request
         internal_request = await mapper.transform_request("gmail", gmail_request)
         print("\nTransformed request:")
-        print(json.dumps(internal_request.dict(), indent=2))
+        print(json.dumps(internal_request.model_dump(), indent=2))
         
         # Check access using transformed request
         result = await engine.check_access(internal_request)
