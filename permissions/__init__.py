@@ -4,11 +4,12 @@
 from .base import (
     PermissionEngine,
     SchemaMapper,
-    PermissionParser,
+    PermissionParser as BasePermissionParser,
     PolicyGenerator,
-    TokenizerInterface,
-    InterpreterInterface,
-    StatementBuilderInterface
+    BaseTokenizer, 
+    BaseInterpreter, 
+    BaseStatementBuilder,
+    BaseSchemaProvider
 )
 
 # Models
@@ -34,28 +35,21 @@ from .models import (
 
 # Parser components
 from .parser import (
-    SimpleTokenizer,
-    SimpleInterpreter,
-    SimpleStatementBuilder,
-    SimplePermissionParser
+    Tokenizer,
+    Interpreter,
+    SchemaProvider,
+    StatementBuilder,
+    PermissionParser
 )
 
 # Engine components
 from .engine import (
     OPAClient,
-    RegoPolicyGenerator
+    RegoGenerator
 )
 
 # Schema mapper
 from .mapper import SimpleSchemaMapper
-
-# Default instances
-from .default import (
-    get_default_engine,
-    get_default_translator,
-    get_default_mapper,
-    get_default_policy_generator
-)
 
 # Specification
 from .spec import get_specification, get_version as get_spec_version
@@ -64,11 +58,12 @@ __all__ = [
     # Base interfaces
     "PermissionEngine",
     "SchemaMapper",
-    "PermissionParser",
+    "BasePermissionParser",
     "PolicyGenerator",
-    "TokenizerInterface",
-    "InterpreterInterface",
-    "StatementBuilderInterface",
+    "BaseTokenizer",
+    "BaseInterpreter",
+    "BaseStatementBuilder",
+    "BaseSchemaProvider",
     
     # Models
     "AccessRequest",
@@ -90,23 +85,18 @@ __all__ = [
     "BaseCommand",
     
     # Parser components
-    "SimpleTokenizer",
-    "SimpleInterpreter",
-    "SimpleStatementBuilder",
-    "SimplePermissionParser",
+    "Tokenizer",
+    "Interpreter",
+    "SchemaProvider",
+    "StatementBuilder",
+    "PermissionParser",
     
     # Engine components
     "OPAClient",
-    "RegoPolicyGenerator",
+    "RegoGenerator",
     
     # Schema mapper
     "SimpleSchemaMapper",
-    
-    # Default instances
-    "get_default_engine",
-    "get_default_translator",
-    "get_default_mapper",
-    "get_default_policy_generator",
     
     # Specification
     "get_specification",
