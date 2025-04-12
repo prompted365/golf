@@ -1,6 +1,6 @@
 # Official Low-Level Specification
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 
 **Status:** Draft
 
@@ -91,10 +91,13 @@ condition_operators:
 structure_helpers:
   - WITH
   - NAMED
-  - ASSIGNED TO
+  - ASSIGNED_TO   # Displayed as "ASSIGNED TO" in input
+  - ACCESS_TO     # Displayed as "ACCESS TO" in input
   - TAGGED
   - FROM
 ```
+
+> **Note:** Multi-word helpers such as "ASSIGNED TO" MUST be normalized to underscore-separated forms (e.g., "ASSIGNED_TO") in the internal structured representation. Tokenizers SHOULD recognize the natural phrase and convert it accordingly.
 
 **D. Generalized Data Types**
 
@@ -167,7 +170,25 @@ COMMAND PERMISSION ACCESS TO RESOURCE_TYPE [STRUCTURAL_HELPER CONDITION_OPERATOR
 - `GIVE READ & WRITE ACCESS TO PROJECTS NAMED = BACKLOG`
 - `DENY READ ACCESS TO ISSUES ASSIGNED TO ANTONI AND NAMED = "Urgent Bug"`
 
+> **Note:** These examples rely on normalization of `"="` to `"IS"`, `"ASSIGNED TO"` to `"ASSIGNED_TO"`, and `"&"` to a separate logical token.
+
 **Note:** Implementations **MAY** add additional structural helpers or condition operators but **SHOULD** remain backward-compatible.
+
+### 4.2 Token Normalization Rules
+
+To ensure robust interpretation of user input, all implementations **MUST** adhere to the following normalization behaviors during tokenization:
+
+- Keyword and enum tokens (e.g., `GIVE`, `ASSIGNED TO`, `TAGGED`) **MUST** be matched case-insensitively.
+- `"ACCESS TO"` **MUST** be recognized as a single grammar unit.
+- `"ASSIGNED TO"` **MUST** be normalized to `"ASSIGNED_TO"` internally.
+- `"="` **MUST** be interpreted as the condition operator `"IS"`.
+- Quoted values (e.g., `"Urgent Bug"`) **MUST** be parsed with quotes stripped and inner content preserved.
+- Tokenizers **MAY** skip or ignore unrecognized characters but **SHOULD** preserve parseable segments.
+
+### 4.3 Special Symbols
+
+- `=` is a shorthand alias for the condition operator `IS`.
+- `&` **MAY** be used to visually represent conjunction (e.g., `READ & WRITE`) and **SHOULD** be tokenized as a standalone symbol.
 
 ---
 
@@ -294,5 +315,11 @@ permissions/
 ## 10. **Change History**
 
 - **v0.1.0 (Draft)** – Initial version, specifying data models, grammar, and OPA integration.
+- **v0.1.1 (Draft)** – Improved tokenization rules to align with the implementation:
+  - Updated Structural Helpers section to use underscore format (e.g., `ASSIGNED_TO` instead of `ASSIGNED TO`)
+  - Added `ACCESS_TO` to Structural Helpers 
+  - Added Token Normalization Rules (Section 4.2) to document token handling behavior
+  - Added Special Symbols section (Section 4.3) to document the handling of special characters
+  - Added clarification note to Examples section regarding token normalization
 
 This concludes the normative low-level specification. All future modifications **SHOULD** update the version and document changes in this final section. 
