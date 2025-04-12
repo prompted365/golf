@@ -1,6 +1,6 @@
 """Statement builder component for creating structured permission statements."""
 
-from typing import Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from ..base import StatementBuilderInterface
 from ..models import (
