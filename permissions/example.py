@@ -2,13 +2,14 @@
 
 import asyncio
 import json
-from typing import Dict, Any
 
-from .default import get_default_engine, get_default_translator, get_default_mapper
+# Import the actual implementation classes directly
+from .engine.opa_client import OPAClient
+from .engine.policy_generator import RegoGenerator
+from .parser.parser import PermissionParser
+from .mapper import SimpleSchemaMapper  # Assuming this wasn't renamed yet
+
 from .models import (
-    AccessRequest, 
-    Resource, 
-    AccessType, 
     ResourceType,
     SchemaMapping,
     FieldPath
@@ -16,21 +17,22 @@ from .models import (
 
 async def main():
     """Example of permission system usage."""
-    # Get default instances
-    engine = get_default_engine()
-    translator = get_default_translator()
-    mapper = get_default_mapper()
+    # Create instances directly instead of using defaults
+    engine = OPAClient()
+    parser = PermissionParser()
+    mapper = SimpleSchemaMapper()
+    policy_generator = RegoGenerator()
     
     # Example 1: Creating a permission statement and converting to Rego policy
     statement_text = "GIVE READ ACCESS TO EMAILS WITH TAGS = WORK"
     print(f"Permission statement: {statement_text}")
     
     # Parse the statement
-    statement = await translator.parse_statement(statement_text)
+    statement = await parser.parse_statement(statement_text)
     print(f"Parsed statement: {statement}")
     
-    # Translate to a Rego policy
-    policy = await translator.translate(statement)
+    # Generate a Rego policy using the policy generator
+    policy = await policy_generator.generate_policy(statement)
     print(f"Generated Rego policy for OPA:")
     print(policy.policy_content)
     
@@ -119,8 +121,11 @@ async def main():
     print(f"\nAccess result for personal email: {result}")
     
     # Example 5: Accessing the specification version
-    from .spec import get_version
-    print(f"\nSpecification version: {get_version()}")
+    try:
+        from .spec import get_version
+        print(f"\nSpecification version: {get_version()}")
+    except ImportError:
+        print("\nSpecification version module not available")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
