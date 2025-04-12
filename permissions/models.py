@@ -10,9 +10,14 @@ FieldPath = NewType('FieldPath', str)
 # ---------------
 
 class BaseCommand(str, Enum):
-    """Base commands for permission statements."""
-    GIVE = "GIVE"
-    DENY = "DENY"
+    """
+    Base commands for permission statements.
+    
+    Note: BaseCommand.GIVE corresponds to effect="ALLOW" when evaluating access requests.
+          BaseCommand.DENY corresponds to effect="DENY".
+    """
+    GIVE = "GIVE"  # Maps to effect="ALLOW" during policy evaluation
+    DENY = "DENY"  # Maps to effect="DENY" during policy evaluation
 
 class AccessType(str, Enum):
     """Defines the type of access being requested."""
@@ -31,7 +36,11 @@ class ResourceType(str, Enum):
     DOCUMENTS = "DOCUMENTS"
 
 class ConditionOperator(str, Enum):
-    """Operators for condition expressions at the field level."""
+    """
+    Operators for condition expressions at the field level.
+    
+    All operators use UPPER_SNAKE_CASE for consistency.
+    """
     # Equality operators
     IS = "IS"
     IS_NOT = "IS_NOT"
@@ -70,7 +79,11 @@ class StructuralHelper(str, Enum):
         return member.value
 
 class DataType(str, Enum):
-    """Data types for permission values."""
+    """
+    Data types for permission values.
+    
+    Note: Values use lowercase strings for compatibility with external systems.
+    """
     DATETIME = "datetime"
     EMAIL_ADDRESS = "email_address"
     USER = "user"
@@ -103,7 +116,12 @@ class Resource(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)  # Additional properties
 
 class AccessRequest(BaseModel):
-    """Represents a request to access a resource."""
+    """
+    Represents a request to access a resource.
+    
+    Note: The 'effect' field uses "ALLOW"/"DENY" literals which correspond to
+          BaseCommand.GIVE/BaseCommand.DENY when creating policy statements.
+    """
     action: AccessType
     resource: Resource
     effect: Optional[Literal["ALLOW", "DENY"]] = "ALLOW"  # Default is ALLOW
