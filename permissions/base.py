@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-
+# Import DataType and StructuralHelper for proper type hinting in SchemaProviderInterface
 from .models import (
     AccessRequest,
     AccessResult,
@@ -11,6 +11,8 @@ from .models import (
     SchemaMapping,
     ResourceType,
     Integration,
+    DataType,
+    StructuralHelper,
 )
 
 class PermissionStore(ABC):
@@ -315,5 +317,50 @@ class PolicyGenerator(ABC):
         Args:
             template_name: The name of the template
             template_content: The content of the template
+        """
+        ...
+
+class SchemaProviderInterface(ABC):
+    """Interface for providing schema information about resources, fields, and types."""
+    
+    @abstractmethod
+    def map_field(self, helper: StructuralHelper, field_token: str, resource_type: ResourceType) -> Optional[str]:
+        """
+        Map a field token to an internal permission field based on the structural helper and resource type.
+        
+        Args:
+            helper: The structural helper used in the permission statement
+            field_token: The field token from the statement
+            resource_type: The resource type being accessed
+            
+        Returns:
+            Optional[str]: The mapped internal field name, or None if no mapping exists
+        """
+        ...
+    
+    @abstractmethod
+    def get_field_type(self, field: str, resource_type: ResourceType) -> Optional[DataType]:
+        """
+        Get the data type of a field for a specific resource.
+        
+        Args:
+            field: The field name
+            resource_type: The resource type
+            
+        Returns:
+            Optional[DataType]: The data type of the field, or None if unknown
+        """
+        ...
+    
+    @abstractmethod
+    def get_resource_metadata(self, resource_type: ResourceType) -> Dict[str, Any]:
+        """
+        Get metadata about a resource type from the integration schema.
+        
+        Args:
+            resource_type: The resource type
+            
+        Returns:
+            Dict[str, Any]: Metadata about the resource type
         """
         ... 
