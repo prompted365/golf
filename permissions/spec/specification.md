@@ -1,6 +1,6 @@
 # Official Low-Level Specification
 
-**Version:** 0.1.1
+**Version:** 0.2.0
 
 **Status:** Draft
 
@@ -118,38 +118,84 @@ data_types:
 
 ### 3.2 Dynamic Data Models
 
-Dynamic models declare integration-specific objects and **MAY** vary by environment or user.
+Dynamic models declare integration-specific resources and their fields. They **MUST** define how external parameters map to internal permission fields and associated data types.
 
 ```yaml
 integration_objects:
   gmail:
     EMAILS:
-      - recipient: email_address
-      - sender: email_address
-      - sender_domain: domain
-      - date_received: datetime
-      - subject: string
-      - tags: tags
-      - attachments: boolean
+      recipient:
+        permission_field: recipient
+        data_type: email_address
+      sender:
+        permission_field: sender
+        data_type: email_address
+      sender_domain:
+        permission_field: sender_domain
+        data_type: domain
+      date_received:
+        permission_field: date
+        data_type: datetime
+      subject:
+        permission_field: name
+        data_type: string
+      tags:
+        permission_field: tags
+        data_type: tags
+      attachments:
+        permission_field: attachments
+        data_type: boolean
     ATTACHMENTS:
-      - filename: string
-      - size: number
-      - mime_type: string
+      filename:
+        permission_field: name
+        data_type: string
+      size:
+        permission_field: size
+        data_type: number
+      mime_type:
+        permission_field: mime_type
+        data_type: string
   linear:
     ISSUES:
-      - issue_id: string
-      - title: string
-      - description: string
-      - assignee: user
-      - status: string
-      - labels: tags
-      - created_date: datetime
-      - updated_date: datetime
+      issue_id:
+        permission_field: id
+        data_type: string
+      title:
+        permission_field: name
+        data_type: string
+      description:
+        permission_field: description
+        data_type: string
+      assignee:
+        permission_field: assignee
+        data_type: user
+      status:
+        permission_field: status
+        data_type: string
+      labels:
+        permission_field: tags
+        data_type: tags
+      created_date:
+        permission_field: created_date
+        data_type: datetime
+      updated_date:
+        permission_field: updated_date
+        data_type: datetime
     TEAMS:
-      - team_id: string
-      - name: string
-      - owner: user
+      team_id:
+        permission_field: id
+        data_type: string
+      name:
+        permission_field: name
+        data_type: string
+      owner:
+        permission_field: owner
+        data_type: user
 ```
+
+> Implementations **MUST** use this mapping for two purposes:
+>   1. Mapping external API fields to internal permission fields used in condition logic.
+>   2. Resolving the canonical data type (from §3.1D) to enable proper type coercion and validation.
 
 **Requirement:** Each integration's resource definitions **MUST** be declared in a consistent format so that the system can correctly apply conditions.
 
@@ -189,6 +235,19 @@ To ensure robust interpretation of user input, all implementations **MUST** adhe
 
 - `=` is a shorthand alias for the condition operator `IS`.
 - `&` **MAY** be used to visually represent conjunction (e.g., `READ & WRITE`) and **SHOULD** be tokenized as a standalone symbol.
+
+### 4.4 Permission Parser Module
+
+#### 4.4.1 Requirements
+
+Implementations of the parser module MUST:
+
+- Accept a raw string as input.
+- Use the tokenizer layer defined in §4.2.
+- Construct valid and type-safe PermissionStatement outputs.
+- Be modular: each component (tokenizer, interpreter, builder) MUST be replaceable.
+- Perform field resolution and type inference using integration schema mappings (from §3.2).
+- Interpreter implementations MUST NOT hardcode field-type associations or semantic field mappings.
 
 ---
 
@@ -321,5 +380,10 @@ permissions/
   - Added Token Normalization Rules (Section 4.2) to document token handling behavior
   - Added Special Symbols section (Section 4.3) to document the handling of special characters
   - Added clarification note to Examples section regarding token normalization
+- **v0.2.0 (Draft)** – Enhanced schema mapping and type inference:
+  - Restructured Dynamic Data Models (Section 3.2) to use a more explicit mapping format
+  - Added clear requirements for field mapping and type resolution
+  - Added new Permission Parser Module section (Section 4.4) with explicit requirements
+  - Added prohibition against hardcoding field-type associations in interpreters
 
 This concludes the normative low-level specification. All future modifications **SHOULD** update the version and document changes in this final section. 
