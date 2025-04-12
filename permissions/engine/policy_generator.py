@@ -2,7 +2,8 @@
 
 import os
 import uuid
-from typing import Dict, Any, List, Optional
+import logging
+from typing import Dict, Any, Optional
 
 from ..base import PolicyGenerator
 from ..models import (
@@ -13,6 +14,9 @@ from ..models import (
     DataType,
     LogicalOperator
 )
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class RegoGenerator(PolicyGenerator):
     """Generates Rego policies from permission statements."""
@@ -89,6 +93,10 @@ default {default_rule} = {default_value}
         Returns:
             RegoPolicy: The generated Rego policy
         """
+        # Log the input statement
+        logger.info(f"Generating policy for statement: {statement}")
+        logger.debug(f"Statement has {len(statement.conditions)} conditions: {statement.conditions}")
+        
         # Get default template
         template = await self.get_template("default")
         
@@ -134,13 +142,20 @@ default {default_rule} = {default_value}
         # Combine statement conditions based on logical operator
         if statement_conditions:
             if statement.logical_operator == LogicalOperator.AND:
+                logger.debug("Using AND operator for conditions")
                 conditions.extend(statement_conditions)
             elif statement.logical_operator == LogicalOperator.OR:
+                logger.debug("Using OR operator for conditions")
                 combined_condition = "(" + " || ".join(statement_conditions) + ")"
                 conditions.append(combined_condition)
+        else:
+            logger.warning("No statement conditions were successfully formatted")
         
         # Format conditions with indentation
         formatted_conditions = "\n    ".join(conditions)
+        
+        # Log the final conditions
+        logger.debug(f"Final formatted conditions:\n{formatted_conditions}")
         
         # Fill in the template
         policy_content = template.format(
@@ -171,9 +186,6 @@ default {default_rule} = {default_value}
         Returns:
             Optional[str]: The formatted condition or None if invalid
         """
-        # Validate required fields are present
-        if not isinstance(condition, dict):
-            return None
             
         # Get required fields with validation
         field = condition.get("field")
@@ -182,9 +194,11 @@ default {default_rule} = {default_value}
         
         # Skip formatting if any required fields are missing
         if field is None or operator is None or value is None:
+            logger.warning(f"Missing required field in condition: {condition}")
             return None
             
         field_type = condition.get("field_type")
+        logger.debug(f"Field type: {field_type}")
         
         # Format field
         field_path = f"input.resource.{field}"
@@ -197,6 +211,7 @@ default {default_rule} = {default_value}
         elif field_type == DataType.NUMBER:
             formatted_value = str(value)
         elif field_type == DataType.TAGS:
+            logger.debug(f"Processing TAGS condition: {value}, {type(value)}")
             if isinstance(value, list):
                 # For lists, we need special handling based on the operator
                 if operator == ConditionOperator.IS:
