@@ -133,26 +133,26 @@ class Interpreter(BaseInterpreter):
                     
                     result["access_types"].append(AccessType(token))
                     
-                    # Check if next token is & or ACCESS TO
+                    # Check if next token is & or ACCESS_TO
                     if i + 1 < len(tokens):
                         if tokens[i + 1] == "&":
                             # More access types coming
                             i += 1
                             continue
-                        elif tokens[i + 1] == "ACCESS TO":
+                        elif tokens[i + 1] == "ACCESS_TO":
                             # Move to next state
                             state = "ACCESS_TO"
                     
                 except ValueError:
-                    # If it's not an access type, check if it's "ACCESS TO"
-                    if token == "ACCESS TO":
+                    # If it's not an access type, check if it's "ACCESS_TO"
+                    if token == "ACCESS_TO":
                         state = "RESOURCE_TYPE"
                     else:
                         raise ValueError(f"Expected an access type (READ, WRITE, DELETE) or ACCESS TO, got {token}")
             
             elif state == "ACCESS_TO":
-                # Expect "ACCESS TO"
-                if token != "ACCESS TO":
+                # Expect "ACCESS_TO"
+                if token != "ACCESS_TO":
                     raise ValueError(f"Expected 'ACCESS TO', got {token}")
                 state = "RESOURCE_TYPE"
             
