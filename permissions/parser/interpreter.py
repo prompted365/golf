@@ -35,12 +35,15 @@ class SimpleInterpreter(InterpreterInterface):
             "access_types": [],
             "resource_type": None,
             "conditions": [],
-            "logical_operator": LogicalOperator.AND
+            # Note: In the future, consider implementing a tree structure for nested logical expressions
+            # This flat list approach works well for simple AND/OR combinations but has limitations
+            # for complex nested logic
         }
         
         # Parse the tokens based on a simple state machine
         state = "COMMAND"
         current_condition = {}
+        current_logical_op = LogicalOperator.AND  # Default logical operator
         
         i = 0
         while i < len(tokens):
@@ -108,7 +111,7 @@ class SimpleInterpreter(InterpreterInterface):
                 except ValueError:
                     # If not a structural helper, should be end of statement
                     if token == "AND" or token == "OR":
-                        result["logical_operator"] = LogicalOperator(token)
+                        current_logical_op = LogicalOperator(token)
                         state = "CONDITION_START"
                     else:
                         raise ValueError(f"Expected a structural helper (WITH, NAMED, etc.) or end of statement, got {token}")
@@ -121,7 +124,36 @@ class SimpleInterpreter(InterpreterInterface):
             elif state == "CONDITION_OPERATOR":
                 # Operator for the condition
                 try:
-                    current_condition["operator"] = ConditionOperator(token)
+                    # Check for compound operators like "IS NOT", "GREATER THAN", etc.
+                    # Simple 2-token operators
+                    compound_operators = {
+                        "IS": {"NOT": ConditionOperator.IS_NOT},
+                        "GREATER": {"THAN": ConditionOperator.GREATER_THAN},
+                        "LESS": {"THAN": ConditionOperator.LESS_THAN}
+                    }
+                    
+                    # Handle 3-token operators first (higher priority)
+                    if (token in ["GREATER", "LESS"] and 
+                        i + 2 < len(tokens) and 
+                        tokens[i + 1] == "OR" and 
+                        tokens[i + 2] == "EQUAL"):
+                        if token == "GREATER":
+                            current_condition["operator"] = ConditionOperator.GREATER_OR_EQUAL
+                        else:  # token == "LESS"
+                            current_condition["operator"] = ConditionOperator.LESS_OR_EQUAL
+                        i += 2  # Skip "OR EQUAL"
+                    # Handle 2-token operators next
+                    elif token in compound_operators and i + 1 < len(tokens):
+                        second_part = tokens[i + 1]
+                        if second_part in compound_operators[token]:
+                            current_condition["operator"] = compound_operators[token][second_part]
+                            i += 1  # Skip the second part of the compound operator
+                        else:
+                            # Handle the token as a single operator
+                            current_condition["operator"] = ConditionOperator(token)
+                    else:
+                        # Single token operator
+                        current_condition["operator"] = ConditionOperator(token)
                     state = "CONDITION_VALUE"
                 except ValueError:
                     raise ValueError(f"Expected a condition operator (IS, CONTAINS, etc.), got {token}")
@@ -137,7 +169,8 @@ class SimpleInterpreter(InterpreterInterface):
                     "field": current_condition["field"],
                     "operator": current_condition["operator"],
                     "value": self._convert_value(token, field_type),
-                    "field_type": field_type
+                    "field_type": field_type,
+                    "logical_operator": current_logical_op  # Save the logical operator with each condition
                 })
                 
                 # Reset for next condition
@@ -146,7 +179,10 @@ class SimpleInterpreter(InterpreterInterface):
                 # Check if there are more conditions
                 if i + 1 < len(tokens):
                     if tokens[i + 1] == "AND" or tokens[i + 1] == "OR":
-                        result["logical_operator"] = LogicalOperator(tokens[i + 1])
+                        # Update the logical operator for the next condition
+                        # TODO: In a future enhancement, this could be used to build a tree structure
+                        # that better represents nested logical expressions
+                        current_logical_op = LogicalOperator(tokens[i + 1])
                         i += 1  # Skip the logical operator token
                         state = "CONDITION_START"
                     else:
