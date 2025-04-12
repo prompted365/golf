@@ -56,6 +56,7 @@ class StructuralHelper(str, Enum):
     WITH = "WITH"
     NAMED = "NAMED"
     ASSIGNED_TO = "ASSIGNED_TO"  # Will be parsed as "ASSIGNED TO" in tokenizer
+    ACCESS_TO = "ACCESS_TO"      # Will be parsed as "ACCESS TO" in tokenizer
     TAGGED = "TAGGED"
     FROM = "FROM"
     
@@ -64,6 +65,8 @@ class StructuralHelper(str, Enum):
         """Get the display value for a member (with spaces where needed)."""
         if member == cls.ASSIGNED_TO:
             return "ASSIGNED TO"
+        elif member == cls.ACCESS_TO:
+            return "ACCESS TO"
         return member.value
 
 class DataType(str, Enum):
