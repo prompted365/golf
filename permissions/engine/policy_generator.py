@@ -97,10 +97,12 @@ default {default_rule} = {default_value}
         
         # Determine the rule type and default value based on the command
         if statement.command == BaseCommand.GIVE:
+            # BaseCommand.GIVE corresponds to the "allow" rule in Rego
             rule_type = "allow"
             default_rule = "allow"
             default_value = "false"
         else:  # DENY
+            # BaseCommand.DENY corresponds to the "deny" rule in Rego
             rule_type = "deny"
             default_rule = "deny"
             default_value = "false"
