@@ -1,6 +1,7 @@
 """Tokenizer component for permission statements."""
 
 import re
+import logging
 from typing import List
 
 from ..base import BaseTokenizer
@@ -13,8 +14,29 @@ from ..models import (
     LogicalOperator
 )
 
+# Setup logging
+logger = logging.getLogger(__name__)
+
 class Tokenizer(BaseTokenizer):
     """Simple implementation of the BaseTokenizer."""
+    
+    # Map of special phrases to their normalized token values
+    SPECIAL_PHRASES = {
+        "ASSIGNED TO": "ASSIGNED_TO",
+        "ACCESS TO": "ACCESS_TO"
+    }
+    
+    # Map of standard escape sequences
+    ESCAPE_SEQUENCES = {
+        'n': '\n',   # newline
+        't': '\t',   # tab
+        'r': '\r',   # carriage return
+        'b': '\b',   # backspace
+        'f': '\f',   # form feed
+        '\\': '\\',  # backslash
+        '"': '"',    # double quote
+        "'": "'"     # single quote
+    }
     
     def __init__(self):
         """Initialize the tokenizer."""
@@ -58,6 +80,43 @@ class Tokenizer(BaseTokenizer):
         escaped_values = [re.escape(value) for value in values]
         return '|'.join(escaped_values)
     
+    def _process_escape_sequences(self, s: str) -> str:
+        """
+        Process escape sequences in a string.
+        
+        Args:
+            s: String containing escape sequences
+            
+        Returns:
+            String with escape sequences replaced by their actual values
+        """
+        result = []
+        i = 0
+        while i < len(s):
+            if s[i] == '\\' and i + 1 < len(s):
+                # Handle standard escape sequences
+                if s[i+1] in self.ESCAPE_SEQUENCES:
+                    result.append(self.ESCAPE_SEQUENCES[s[i+1]])
+                    i += 2
+                # Handle hex escape sequences \xhh
+                elif s[i+1] == 'x' and i + 3 < len(s) and all(c in '0123456789abcdefABCDEF' for c in s[i+2:i+4]):
+                    hex_value = s[i+2:i+4]
+                    result.append(chr(int(hex_value, 16)))
+                    i += 4
+                # Handle unicode escape sequences \uhhhh
+                elif s[i+1] == 'u' and i + 5 < len(s) and all(c in '0123456789abcdefABCDEF' for c in s[i+2:i+6]):
+                    unicode_value = s[i+2:i+6]
+                    result.append(chr(int(unicode_value, 16)))
+                    i += 6
+                # Unknown escape sequence - just include the character
+                else:
+                    result.append(s[i+1])
+                    i += 2
+            else:
+                result.append(s[i])
+                i += 1
+        return ''.join(result)
+    
     def tokenize(self, statement_text: str) -> List[str]:
         """
         Tokenize a permission statement into a list of tokens.
@@ -74,6 +133,7 @@ class Tokenizer(BaseTokenizer):
         # Replace special patterns
         tokens = []
         remaining = statement
+        unmatched_chars = []
         
         # Process the statement until it's empty
         while remaining:
@@ -89,23 +149,21 @@ class Tokenizer(BaseTokenizer):
             if quoted_match:
                 # Process escaped characters in the string
                 quoted_content = quoted_match.group(1)
-                processed_content = re.sub(r'\\(.)', r'\1', quoted_content)  # Replace \x with x
+                processed_content = self._process_escape_sequences(quoted_content)
                 tokens.append(processed_content)
                 remaining = remaining[quoted_match.end():]
                 matched = True
                 continue
             
-            # Check for special helper phrases first
-            if remaining.upper().startswith("ASSIGNED TO"):
-                tokens.append("ASSIGNED_TO")  # Use enum value internally
-                remaining = remaining[len("ASSIGNED TO"):]
-                matched = True
-                continue
-                
-            if remaining.upper().startswith("ACCESS TO"):
-                tokens.append("ACCESS_TO")  # Use enum value internally
-                remaining = remaining[len("ACCESS TO"):]
-                matched = True
+            # Check for special phrases first (like "ASSIGNED TO", "ACCESS TO")
+            for phrase, normalized in self.SPECIAL_PHRASES.items():
+                if remaining.upper().startswith(phrase):
+                    tokens.append(normalized)
+                    remaining = remaining[len(phrase):]
+                    matched = True
+                    break
+                    
+            if matched:
                 continue
             
             # Then try to match command keywords (GIVE, DENY)
@@ -135,12 +193,7 @@ class Tokenizer(BaseTokenizer):
             # Try to match structural helpers (WITH, NAMED, etc.)
             helper_match = re.match(f'^({self.patterns["structural_helper"]})', remaining, re.IGNORECASE)
             if helper_match:
-                # Map the display value to the enum value if needed
                 helper_token = helper_match.group(1).upper()
-                if helper_token == "ASSIGNED TO":
-                    helper_token = "ASSIGNED_TO"
-                elif helper_token == "ACCESS TO":
-                    helper_token = "ACCESS_TO"
                 tokens.append(helper_token)
                 remaining = remaining[helper_match.end():]
                 matched = True
@@ -185,6 +238,12 @@ class Tokenizer(BaseTokenizer):
             
             # If nothing matched, just skip this character
             if not matched:
+                unmatched_char = remaining[0]
+                unmatched_chars.append(unmatched_char)
                 remaining = remaining[1:]
+        
+        # If we skipped characters, log a warning
+        if unmatched_chars:
+            logger.warning(f"Skipped unmatched characters during tokenization: {repr(''.join(unmatched_chars))}")
         
         return tokens 
