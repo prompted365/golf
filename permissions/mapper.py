@@ -1,9 +1,17 @@
 """Schema mapping for external APIs to internal access requests."""
 
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 from .base import SchemaMapper
-from .models import SchemaMapping, AccessRequest, Resource, ResourceType, AccessType
+from .models import (
+    SchemaMapping, 
+    AccessRequest, 
+    Resource, 
+    ResourceType, 
+    AccessType,
+    Integration,
+    FieldPath
+)
 
 class SimpleSchemaMapper(SchemaMapper):
     """Simple implementation of the SchemaMapper interface."""
@@ -12,6 +20,7 @@ class SimpleSchemaMapper(SchemaMapper):
         """Initialize the schema mapper."""
         self.mappings: Dict[str, Dict[str, SchemaMapping]] = {}
         self.mapping_ids: Dict[str, SchemaMapping] = {}
+        self.integrations: Dict[str, Integration] = {}
     
     async def add_mapping(self, mapping: SchemaMapping) -> str:
         """
@@ -89,23 +98,11 @@ class SimpleSchemaMapper(SchemaMapper):
         
         # Map properties according to the mapping
         resource_properties = {}
-        for target_prop, source_prop in mapping.property_mappings.items():
-            # Handle dot notation for nested properties
-            if "." in source_prop:
-                parts = source_prop.split(".")
-                value = api_request
-                for part in parts:
-                    if isinstance(value, dict) and part in value:
-                        value = value[part]
-                    else:
-                        value = None
-                        break
-                
-                if value is not None:
-                    resource_properties[target_prop] = value
-            else:
-                if source_prop in api_request:
-                    resource_properties[target_prop] = api_request[source_prop]
+        for target_prop, source_field_path in mapping.property_mappings.items():
+            # Get value using the field path
+            value = self._get_value_by_path(api_request, source_field_path)
+            if value is not None:
+                resource_properties[target_prop] = value
         
         # Apply transformations if any
         if mapping.transformation_rules:
@@ -118,6 +115,15 @@ class SimpleSchemaMapper(SchemaMapper):
                         resource_properties[prop] = resource_properties[prop].lower()
                     elif transform_rule == "to_list" and isinstance(resource_properties[prop], str):
                         resource_properties[prop] = [item.strip() for item in resource_properties[prop].split(",")]
+                    elif transform_rule.startswith("format:"):
+                        # Format using placeholders, e.g., "format:{name} ({email})"
+                        format_str = transform_rule[len("format:"):]
+                        try:
+                            # Use the resource properties to format the string
+                            resource_properties[prop] = format_str.format(**resource_properties)
+                        except KeyError:
+                            # If a placeholder is missing, keep the original value
+                            pass
         
         # Create the standardized request
         return AccessRequest(
@@ -130,4 +136,100 @@ class SimpleSchemaMapper(SchemaMapper):
                 "source_api": source_api,
                 "original_request": api_request
             }
-        ) 
+        )
+    
+    def _get_value_by_path(self, data: Dict[str, Any], field_path: FieldPath) -> Optional[Any]:
+        """
+        Get a value from a nested dictionary using a dot-notated path.
+        
+        Args:
+            data: The dictionary to search
+            field_path: The path to the field (e.g., "email.sender.domain")
+            
+        Returns:
+            Optional[Any]: The value if found, None otherwise
+        """
+        if not field_path:
+            return None
+        
+        # Handle JSONPath-like array access with [n] notation
+        parts = []
+        current_part = ""
+        in_brackets = False
+        
+        for char in field_path:
+            if char == '[':
+                if current_part:
+                    parts.append(current_part)
+                    current_part = ""
+                in_brackets = True
+            elif char == ']':
+                if in_brackets:
+                    # Add the index as a separate part
+                    try:
+                        parts.append(int(current_part))
+                    except ValueError:
+                        # If not an integer, treat as a string key
+                        parts.append(current_part)
+                    current_part = ""
+                    in_brackets = False
+            elif char == '.' and not in_brackets:
+                if current_part:
+                    parts.append(current_part)
+                    current_part = ""
+            else:
+                current_part += char
+        
+        # Add the last part if any
+        if current_part:
+            parts.append(current_part)
+        
+        # Traverse the data structure
+        current = data
+        for part in parts:
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list) and isinstance(part, int) and 0 <= part < len(current):
+                current = current[part]
+            else:
+                return None
+            
+            if current is None:
+                return None
+        
+        return current
+    
+    async def register_integration(self, integration: Integration) -> str:
+        """
+        Register a new integration with its resources and parameters.
+        
+        Args:
+            integration: The integration to register
+            
+        Returns:
+            str: The integration ID
+        """
+        # Store the integration
+        self.integrations[integration.name] = integration
+        return integration.name
+    
+    async def get_integration(self, integration_name: str) -> Optional[Integration]:
+        """
+        Get an integration by its name.
+        
+        Args:
+            integration_name: The name of the integration
+            
+        Returns:
+            Optional[Integration]: The integration if found, None otherwise
+        """
+        return self.integrations.get(integration_name)
+    
+    async def list_integrations(self) -> List[Integration]:
+        """
+        List all registered integrations.
+        
+        Returns:
+            List[Integration]: All registered integrations
+        """
+        return list(self.integrations.values()) 
