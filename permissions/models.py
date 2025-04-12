@@ -1,6 +1,9 @@
-from typing import Dict, List, Optional, Any, Literal
+from typing import Dict, List, Optional, Any, Literal, NewType
 from pydantic import BaseModel, Field
 from enum import Enum
+
+# Field path for accessing nested properties (e.g., "email.sender.domain")
+FieldPath = NewType('FieldPath', str)
 
 # ---------------
 # Static Data Models
@@ -140,7 +143,7 @@ class Integration(BaseModel):
 
 class SchemaMapping(BaseModel):
     """Maps external API schemas to internal resource types."""
-    source_api: str                # Name of the source API (e.g., "gmail", "jira")
-    resource_type: ResourceType    # Internal resource type
-    property_mappings: Dict[str, str]  # Maps API fields to internal properties
+    source_api: str                           # Name of the source API (e.g., "gmail", "jira")
+    resource_type: ResourceType               # Internal resource type
+    property_mappings: Dict[str, FieldPath]   # Maps internal fields to external API field paths
     transformation_rules: Optional[Dict[str, str]] = None  # Optional transformation rules 
