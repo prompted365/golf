@@ -10,6 +10,7 @@
 
 Authed | [Docs]()
 </div>
+
 > **Note**: Authed Permissions is now the core focus of this repository. For identity and authentication, see [Authed Identity](https://github.com/authed-dev/authed-identity).
 
 ## Overview
