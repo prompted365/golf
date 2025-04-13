@@ -13,6 +13,27 @@ GMAIL_RESOURCES = {
         StructuralHelper.ASSIGNED_TO.value: "assignee",
     },
     
+    # Coercion pipelines for data types
+    "_pipelines": {
+        DataType.BOOLEAN.value: [
+            "lowercase",
+            {"map_values": {
+                "true": ["true", "yes", "on", "1"],
+                "false": ["false", "no", "off", "0"]
+            }},
+            {"default": False}
+        ],
+        DataType.TAGS.value: [
+            {"split": {
+                "separator": ",",
+                "strip_whitespace": True
+            }}
+        ],
+        DataType.EMAIL_ADDRESS.value: [
+            "validate_email_format"
+        ]
+    },
+    
     ResourceType.EMAILS.value: {
         "tags": {
             "permission_field": "tags",

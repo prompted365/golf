@@ -12,6 +12,27 @@ LINEAR_RESOURCES = {
         StructuralHelper.ASSIGNED_TO.value: "assignee",
     },
     
+    # Coercion pipelines for data types
+    "_pipelines": {
+        DataType.BOOLEAN.value: [
+            "lowercase",
+            {"map_values": {
+                "true": ["true", "yes", "on", "1", "active", "enabled"],
+                "false": ["false", "no", "off", "0", "inactive", "disabled"]
+            }}
+        ],
+        DataType.TAGS.value: [
+            {"split": {
+                "separator": ",",
+                "strip_whitespace": True
+            }}
+        ],
+        DataType.NUMBER.value: [
+            "try_int",
+            "try_float"
+        ]
+    },
+    
     ResourceType.ISSUES.value: {
         "id": {
             "permission_field": "id",
