@@ -430,6 +430,7 @@ permissions/
 │   └── linear.py
 |
 ├── coercion_engine.py
+│   # Central declarative coercion logic and operations
 |
 ├── engine/
 │   ├── opa_client.py
