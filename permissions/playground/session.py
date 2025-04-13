@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from permissions.parser import Tokenizer, Interpreter, StatementBuilder, PermissionParser
 from permissions.models import PermissionStatement, ResourceType, AccessType, BaseCommand
 from permissions.parser.interpreter import SchemaProvider
-from permissions.integrations.linear import LINEAR_RESOURCES
+from permissions.integrations import get_integration_mappings
 
 
 class TokenizationResult(BaseModel):
@@ -52,9 +52,11 @@ class PlaygroundSession:
     
     def __init__(self):
         """Initialize a new playground session."""
-        self.linear_schema = SchemaProvider({"linear": LINEAR_RESOURCES})
+        # Get all integration mappings
+        all_mappings = get_integration_mappings()
+        self.schema_provider = SchemaProvider(all_mappings)
         self.tokenizer = Tokenizer()
-        self.interpreter = Interpreter(schema_provider=self.linear_schema)
+        self.interpreter = Interpreter(schema_provider=self.schema_provider)
         self.statement_builder = StatementBuilder()
         self.parser = PermissionParser(
             tokenizer=self.tokenizer,
@@ -167,7 +169,7 @@ class PlaygroundSession:
         """
         try:
             resource_type = ResourceType(resource_type_str.upper())
-            return LINEAR_RESOURCES.get(resource_type.value, {})
+            return self.schema_provider.get_resource_fields(resource_type)
         except (ValueError, KeyError):
             # If the resource type is not valid, return empty dict
             return {}
