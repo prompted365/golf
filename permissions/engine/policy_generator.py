@@ -3,7 +3,7 @@
 import os
 import uuid
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
 from ..base import PolicyGenerator
 from ..models import (
@@ -176,28 +176,38 @@ default {default_rule} = {default_value}
             }
         )
     
-    def _format_condition(self, condition: Dict[str, Any]) -> Optional[str]:
+    def _format_condition(self, condition) -> Optional[str]:
         """
         Format a condition for Rego.
         
         Args:
-            condition: The condition to format
+            condition: The condition to format (Pydantic model or dictionary)
             
         Returns:
             Optional[str]: The formatted condition or None if invalid
         """
-            
-        # Get required fields with validation
-        field = condition.get("field")
-        operator = condition.get("operator")
-        value = condition.get("value")
+        # Check if condition is a dictionary or a Pydantic model
+        if hasattr(condition, "field"):
+            # It's a Pydantic model, access attributes directly
+            field = condition.field
+            operator = condition.operator
+            value = condition.value
+            field_type = condition.field_type
+        else:
+            # Assume it's a dictionary
+            field = condition.get("field")
+            operator = condition.get("operator")
+            value = condition.get("value")
+            field_type = condition.get("field_type")
+        
+        # Log what we're working with
+        logger.debug(f"Formatting condition: field={field}, operator={operator}, value={value}")
         
         # Skip formatting if any required fields are missing
         if field is None or operator is None or value is None:
             logger.warning(f"Missing required field in condition: {condition}")
             return None
             
-        field_type = condition.get("field_type")
         logger.debug(f"Field type: {field_type}")
         
         # Format field
@@ -215,13 +225,15 @@ default {default_rule} = {default_value}
             if isinstance(value, list):
                 # For lists, we need special handling based on the operator
                 if operator == ConditionOperator.IS:
-                    # Check if tags is exactly this list
+                    # Check if tags is exactly this list - use Rego's semicolons for AND operations
                     tags_check = []
                     for tag in value:
                         tags_check.append(f'"{tag}" in {field_path}')
-                    return "(" + " && ".join(tags_check) + f" && count({field_path}) == {len(value)})"
+                    tags_expr = "; ".join(tags_check)
+                    count_expr = f"count({field_path}) == {len(value)}"
+                    return f"({tags_expr}; {count_expr})"
                 elif operator == ConditionOperator.CONTAINS:
-                    # Check if any of these tags are in the list
+                    # Check if any of these tags are in the list - OR can still use pipes in Rego
                     tags_check = []
                     for tag in value:
                         tags_check.append(f'"{tag}" in {field_path}')
