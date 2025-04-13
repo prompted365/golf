@@ -2,10 +2,15 @@
 
 import asyncio
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables from .env file
-load_dotenv()
+# Ensure we're loading the .env from the core/integrations directory
+current_dir = Path(__file__).parent
+dotenv_path = current_dir / '.env'
+
+from dotenv import load_dotenv
+# Load environment variables from .env file using the correct path
+load_dotenv(dotenv_path=dotenv_path)
 
 from core.engine.opa_client import OPAClient
 from core.mapper import SimpleSchemaMapper
@@ -18,12 +23,12 @@ from core.engine.policy_generator import RegoGenerator
 
 async def main():
     """Demonstrate how to apply middleware to Linear client."""
-    # Linear API configuration - get from environment or use placeholder
+    # Linear API configuration
     linear_api_key = os.environ.get("LINEAR_API_KEY")
     if not linear_api_key:
-        print("Warning: LINEAR_API_KEY environment variable not set.")
-        print("Using placeholder. This will not work with actual API calls.")
-        linear_api_key = "placeholder_for_testing_only"
+        print("ERROR: LINEAR_API_KEY environment variable is not set.")
+        print("Please set this environment variable to your Linear API key before running this example.")
+        return
     
     # Initialize OPA client, schema mapper, and register integration
     async with OPAClient() as engine:
@@ -116,8 +121,8 @@ async def main():
         async with LinearClientWithPermissions(api_key=linear_api_key) as client:
             # The wrapped client methods now have permission checks
             print("Fetching issues with permission checks...")
-            issues, has_more = await client.fetch_issues(labels=["priority:1"])
-            print(f"Retrieved {len(issues)} issues with priority label")
+            issues, has_more = await client.fetch_issues(priority=1)
+            print(f"Retrieved {len(issues)} issues with priority 1")
             
             print("\nFetching teams with permission checks...")
             teams, has_more = await client.fetch_teams()
