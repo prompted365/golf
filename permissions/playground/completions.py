@@ -3,7 +3,7 @@
 from typing import List, Dict, Set
 import re
 
-from ..models import (
+from permissions.models import (
     BaseCommand, 
     AccessType, 
     ResourceType, 
@@ -11,7 +11,7 @@ from ..models import (
     StructuralHelper,
     DataType
 )
-from ..integrations.linear import LINEAR_RESOURCES
+from permissions.integrations.linear import LINEAR_RESOURCES
 
 
 class Completer:

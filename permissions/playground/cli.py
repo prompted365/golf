@@ -5,8 +5,8 @@ import cmd
 import json
 import argparse
 
-from .session import PlaygroundSession
-from .completions import Completer
+from permissions.playground.session import PlaygroundSession
+from permissions.playground.completions import Completer
 
 
 class PermissionShell(cmd.Cmd):

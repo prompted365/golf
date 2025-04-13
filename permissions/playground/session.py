@@ -1,12 +1,13 @@
 """Playground session for parsing and testing permission statements."""
 
 from typing import Dict, List, Any, Optional
+import json
 from pydantic import BaseModel
 
-from ..parser import Tokenizer, Interpreter, StatementBuilder, PermissionParser
-from ..models import PermissionStatement, ResourceType, AccessType, BaseCommand
-from ..parser.interpreter import SchemaProvider
-from ..integrations.linear import LINEAR_RESOURCES
+from permissions.parser import Tokenizer, Interpreter, StatementBuilder, PermissionParser
+from permissions.models import PermissionStatement, ResourceType, AccessType, BaseCommand
+from permissions.parser.interpreter import SchemaProvider
+from permissions.integrations.linear import LINEAR_RESOURCES
 
 
 class TokenizationResult(BaseModel):
