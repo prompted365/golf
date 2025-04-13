@@ -53,7 +53,7 @@ class RegoGenerator(PolicyGenerator):
 
 default {default_rule} = {default_value}
 
-{rule_type} {{
+{rule_type} = true if {{
     {conditions}
 }}
 """
@@ -231,13 +231,13 @@ default {default_rule} = {default_value}
                         tags_check.append(f'"{tag}" in {field_path}')
                     tags_expr = "; ".join(tags_check)
                     count_expr = f"count({field_path}) == {len(value)}"
-                    return f"({tags_expr}; {count_expr})"
+                    return f"{tags_expr}; {count_expr}"
                 elif operator == ConditionOperator.CONTAINS:
                     # Check if any of these tags are in the list - OR can still use pipes in Rego
                     tags_check = []
                     for tag in value:
                         tags_check.append(f'"{tag}" in {field_path}')
-                    return "(" + " || ".join(tags_check) + ")"
+                    return " || ".join(tags_check)
             
             # Single tag value
             formatted_value = f'"{value}"'
