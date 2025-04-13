@@ -8,8 +8,7 @@ from permissions.models import (
     AccessType, 
     ResourceType, 
     ConditionOperator,
-    StructuralHelper,
-    DataType
+    StructuralHelper
 )
 from permissions.integrations.linear import LINEAR_RESOURCES
 
