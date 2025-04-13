@@ -1,7 +1,8 @@
 """Linear API client for interacting with Linear's GraphQL API."""
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
 
 import httpx
 
@@ -76,168 +77,407 @@ class LinearClient:
     async def fetch_issues(self, 
                           assignee: Optional[str] = None, 
                           labels: Optional[List[str]] = None, 
-                          status: Optional[str] = None) -> List[Dict[str, Any]]:
+                          status: Optional[str] = None,
+                          first: int = 100) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Fetch issues from Linear based on criteria.
         
         Args:
-            assignee: Filter by assignee name/ID
+            assignee: Filter by assignee name
             labels: Filter by issue labels
-            status: Filter by issue status
+            status: Filter by issue state name
+            first: Maximum number of issues to fetch
             
         Returns:
-            List[Dict[str, Any]]: List of matching issues
+            Tuple[List[Dict[str, Any]], bool]: Tuple of (issues list, has_next_page)
         """
-        # Build filter conditions
-        filter_conditions = []
-        variables = {}
+        # Build filter variables
+        variables = {
+            "first": first
+        }
+        
+        # Build filter conditions for the filter object
+        filter_parts = []
         
         if assignee:
-            filter_conditions.append("assignee: { name: { eq: $assignee } }")
-            variables["assignee"] = assignee
-        
+            filter_parts.append("assignee: { name: { eq: $assigneeName } }")
+            variables["assigneeName"] = assignee
+            
         if labels and len(labels) > 0:
-            filter_conditions.append("labels: { name: { in: $labels } }")
-            variables["labels"] = labels
-        
+            filter_parts.append("labels: { name: { in: $labelNames } }")
+            variables["labelNames"] = labels
+            
         if status:
-            filter_conditions.append("state: { name: { eq: $status } }")
-            variables["status"] = status
+            filter_parts.append("state: { name: { eq: $stateName } }")
+            variables["stateName"] = status
         
-        # Create filter string
-        filter_string = ", ".join(filter_conditions)
-        filter_clause = f"filter: {{ {filter_string} }}" if filter_string else ""
-        
-        query = f"""
-        query Issues($assignee: String, $labels: [String!], $status: String) {{
-            issues({filter_clause}) {{
-                nodes {{
+        # Construct filter clause
+        filter_clause = ""
+        if filter_parts:
+            filter_string = ", ".join(filter_parts)
+            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
+        else:
+            filter_clause = "(first: $first)"
+
+        # GraphQL query with pagination
+        query = """
+        query IssueSearch(
+            $first: Int!,
+            $assigneeName: String,
+            $labelNames: [String!],
+            $stateName: String
+        ) {
+            issues""" + filter_clause + """ {
+                nodes {
                     id
+                    identifier
                     title
                     description
-                    assignee {{ 
-                        id
-                        name
-                    }}
-                    state {{
-                        id
-                        name
-                    }}
-                    labels {{
-                        nodes {{
-                            id
-                            name
-                        }}
-                    }}
+                    priority
+                    estimate
+                    dueDate
                     createdAt
                     updatedAt
-                }}
-            }}
-        }}
+                    assignee {
+                        id
+                        name
+                        email
+                    }
+                    state {
+                        id
+                        name
+                        color
+                        type
+                    }
+                    labels {
+                        nodes {
+                            id
+                            name
+                            color
+                        }
+                    }
+                    team {
+                        id
+                        name
+                        key
+                    }
+                    project {
+                        id
+                        name
+                    }
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
         """
         
         # Execute the query
         result = await self.execute_query(query, variables)
         
         # Process and return the issues
-        if "issues" in result and "nodes" in result["issues"]:
-            issues = result["issues"]["nodes"]
-            
-            # Transform the issues to match our internal format
-            transformed_issues = []
-            for issue in issues:
-                # Extract label names
-                labels = []
-                if "labels" in issue and "nodes" in issue["labels"]:
-                    labels = [label["name"] for label in issue["labels"]["nodes"]]
-                
-                # Extract assignee
-                assignee_name = None
-                if issue.get("assignee"):
-                    assignee_name = issue["assignee"].get("name")
-                
-                # Extract status
-                status = None
-                if issue.get("state"):
-                    status = issue["state"].get("name")
-                
-                transformed_issues.append({
-                    "id": issue.get("id"),
-                    "title": issue.get("title"),
-                    "description": issue.get("description"),
-                    "assignee": assignee_name,
-                    "labels": labels,
-                    "status": status,
-                    "created_date": issue.get("createdAt"),
-                    "updated_date": issue.get("updatedAt")
-                })
-            
-            return transformed_issues
+        issues_data = []
+        has_next_page = False
         
-        return []
+        if "issues" in result:
+            if "nodes" in result["issues"]:
+                issues = result["issues"]["nodes"]
+                
+                # Transform issues to match our internal format
+                for issue in issues:
+                    # Extract labels
+                    label_list = []
+                    if issue.get("labels") and "nodes" in issue["labels"]:
+                        label_list = [label["name"] for label in issue["labels"]["nodes"]]
+                    
+                    # Extract assignee
+                    assignee_name = None
+                    if issue.get("assignee"):
+                        assignee_name = issue["assignee"].get("name")
+                    
+                    # Extract state/status
+                    state_name = None
+                    if issue.get("state"):
+                        state_name = issue["state"].get("name")
+                    
+                    # Extract team
+                    team_name = None
+                    if issue.get("team"):
+                        team_name = issue["team"].get("name")
+                    
+                    # Format dates 
+                    created_date = issue.get("createdAt")
+                    updated_date = issue.get("updatedAt")
+                    due_date = issue.get("dueDate")
+                    
+                    issues_data.append({
+                        "id": issue.get("id"),
+                        "identifier": issue.get("identifier"),
+                        "title": issue.get("title"),
+                        "description": issue.get("description"),
+                        "priority": issue.get("priority"),
+                        "estimate": issue.get("estimate"),
+                        "assignee": assignee_name,
+                        "labels": label_list,
+                        "status": state_name,
+                        "team": team_name,
+                        "project": issue.get("project", {}).get("name"),
+                        "created_date": created_date,
+                        "updated_date": updated_date,
+                        "due_date": due_date
+                    })
+            
+            # Check for pagination info
+            if "pageInfo" in result["issues"]:
+                has_next_page = result["issues"]["pageInfo"].get("hasNextPage", False)
+        
+        return issues_data, has_next_page
     
-    async def fetch_teams(self, owner: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def fetch_teams(self, 
+                         owner: Optional[str] = None,
+                         first: int = 50) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Fetch teams from Linear.
         
         Args:
-            owner: Filter by team owner name/ID
+            owner: Filter by team owner name
+            first: Maximum number of teams to fetch
             
         Returns:
-            List[Dict[str, Any]]: List of matching teams
+            Tuple[List[Dict[str, Any]], bool]: Tuple of (teams list, has_next_page)
         """
+        # Build filter variables
+        variables = {
+            "first": first
+        }
+        
         # Build filter conditions
-        filter_conditions = []
-        variables = {}
+        filter_parts = []
         
         if owner:
-            filter_conditions.append("owner: { name: { eq: $owner } }")
-            variables["owner"] = owner
+            filter_parts.append("members: { user: { name: { eq: $ownerName } }, isAdmin: true }")
+            variables["ownerName"] = owner
         
-        # Create filter string
-        filter_string = ", ".join(filter_conditions)
-        filter_clause = f"filter: {{ {filter_string} }}" if filter_string else ""
+        # Construct filter clause
+        filter_clause = ""
+        if filter_parts:
+            filter_string = ", ".join(filter_parts)
+            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
+        else:
+            filter_clause = "(first: $first)"
         
-        query = f"""
-        query Teams($owner: String) {{
-            teams({filter_clause}) {{
-                nodes {{
+        # GraphQL query with pagination
+        query = """
+        query TeamSearch(
+            $first: Int!,
+            $ownerName: String
+        ) {
+            teams""" + filter_clause + """ {
+                nodes {
                     id
                     name
                     key
                     description
-                    owner {{
-                        id
-                        name
-                    }}
-                }}
-            }}
-        }}
+                    color
+                    states {
+                        nodes {
+                            id
+                            name
+                            color
+                            type
+                        }
+                    }
+                    members {
+                        nodes {
+                            user {
+                                id
+                                name
+                                email
+                            }
+                            isAdmin
+                        }
+                    }
+                    createdAt
+                    updatedAt
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
         """
         
         # Execute the query
         result = await self.execute_query(query, variables)
         
         # Process and return the teams
-        if "teams" in result and "nodes" in result["teams"]:
-            teams = result["teams"]["nodes"]
-            
-            # Transform the teams to match our internal format
-            transformed_teams = []
-            for team in teams:
-                # Extract owner
-                owner_name = None
-                if team.get("owner"):
-                    owner_name = team["owner"].get("name")
-                
-                transformed_teams.append({
-                    "id": team.get("id"),
-                    "name": team.get("name"),
-                    "key": team.get("key"),
-                    "description": team.get("description"),
-                    "owner": owner_name
-                })
-            
-            return transformed_teams
+        teams_data = []
+        has_next_page = False
         
-        return [] 
+        if "teams" in result:
+            if "nodes" in result["teams"]:
+                teams = result["teams"]["nodes"]
+                
+                for team in teams:
+                    # Extract members and identify owner/admin
+                    members = []
+                    owner_name = None
+                    
+                    if team.get("members") and "nodes" in team["members"]:
+                        for member in team["members"]["nodes"]:
+                            if member.get("user"):
+                                user = member["user"]
+                                members.append(user.get("name"))
+                                
+                                # Admin member is considered an owner
+                                if member.get("isAdmin"):
+                                    if not owner_name:  # First admin found becomes owner
+                                        owner_name = user.get("name")
+                    
+                    # Extract states
+                    states = []
+                    if team.get("states") and "nodes" in team["states"]:
+                        states = [state["name"] for state in team["states"]["nodes"]]
+                    
+                    teams_data.append({
+                        "id": team.get("id"),
+                        "name": team.get("name"),
+                        "key": team.get("key"),
+                        "description": team.get("description"),
+                        "color": team.get("color"),
+                        "owner": owner_name,
+                        "members": members,
+                        "states": states,
+                        "created_date": team.get("createdAt"),
+                        "updated_date": team.get("updatedAt")
+                    })
+            
+            # Check for pagination info
+            if "pageInfo" in result["teams"]:
+                has_next_page = result["teams"]["pageInfo"].get("hasNextPage", False)
+        
+        return teams_data, has_next_page
+        
+    async def fetch_projects(self, 
+                           team_id: Optional[str] = None,
+                           first: int = 50) -> Tuple[List[Dict[str, Any]], bool]:
+        """
+        Fetch projects from Linear.
+        
+        Args:
+            team_id: Filter by team ID
+            first: Maximum number of projects to fetch
+            
+        Returns:
+            Tuple[List[Dict[str, Any]], bool]: Tuple of (projects list, has_next_page)
+        """
+        # Build filter variables
+        variables = {
+            "first": first
+        }
+        
+        # Build filter conditions
+        filter_parts = []
+        
+        if team_id:
+            filter_parts.append("team: { id: { eq: $teamId } }")
+            variables["teamId"] = team_id
+        
+        # Construct filter clause
+        filter_clause = ""
+        if filter_parts:
+            filter_string = ", ".join(filter_parts)
+            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
+        else:
+            filter_clause = "(first: $first)"
+        
+        # GraphQL query with pagination
+        query = """
+        query ProjectSearch(
+            $first: Int!,
+            $teamId: String
+        ) {
+            projects""" + filter_clause + """ {
+                nodes {
+                    id
+                    name
+                    description
+                    state
+                    progress
+                    startDate
+                    targetDate
+                    team {
+                        id
+                        name
+                        key
+                    }
+                    members {
+                        nodes {
+                            user {
+                                id
+                                name
+                            }
+                        }
+                    }
+                    leadId
+                    createdAt
+                    updatedAt
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
+        """
+        
+        # Execute the query
+        result = await self.execute_query(query, variables)
+        
+        # Process and return the projects
+        projects_data = []
+        has_next_page = False
+        
+        if "projects" in result:
+            if "nodes" in result["projects"]:
+                projects = result["projects"]["nodes"]
+                
+                for project in projects:
+                    # Extract members
+                    members = []
+                    if project.get("members") and "nodes" in project["members"]:
+                        for member in project["members"]["nodes"]:
+                            if member.get("user") and member["user"].get("name"):
+                                members.append(member["user"]["name"])
+                    
+                    # Extract team info
+                    team_name = None
+                    team_key = None
+                    if project.get("team"):
+                        team_name = project["team"].get("name")
+                        team_key = project["team"].get("key")
+                    
+                    projects_data.append({
+                        "id": project.get("id"),
+                        "name": project.get("name"),
+                        "description": project.get("description"),
+                        "state": project.get("state"),
+                        "progress": project.get("progress"),
+                        "start_date": project.get("startDate"),
+                        "target_date": project.get("targetDate"),
+                        "team_name": team_name,
+                        "team_key": team_key,
+                        "members": members,
+                        "lead_id": project.get("leadId"),
+                        "created_date": project.get("createdAt"),
+                        "updated_date": project.get("updatedAt")
+                    })
+            
+            # Check for pagination info
+            if "pageInfo" in result["projects"]:
+                has_next_page = result["projects"]["pageInfo"].get("hasNextPage", False)
+        
+        return projects_data, has_next_page 
