@@ -56,7 +56,7 @@ class OPAClient(PermissionEngine):
                 "action": request.action,
                 "resource": {
                     "type": request.resource.type,
-                    **request.resource.properties
+                    "properties": request.resource.properties
                 },
                 "context": request.context
             }
