@@ -32,9 +32,9 @@ class CoercionEngine:
             "default": self._process_default
         }
     
-    def coerce(self, value: str, data_type: DataType) -> Any:
+    def coerce(self, value: Any, data_type: Optional[DataType]) -> Any:
         """
-        Coerce a value to the specified data type using the appropriate pipeline.
+        Coerce a value to the specified data type.
         
         Args:
             value: The value to coerce
@@ -43,75 +43,108 @@ class CoercionEngine:
         Returns:
             Any: The coerced value
         """
-        # Get pipeline for this data type
-        pipeline = self.pipelines.get(data_type.value, [])
+        # If no data type is specified, return the value as-is
+        if data_type is None:
+            return value
+            
+        # Get pipeline for this data type if available
+        pipeline = self.get_pipeline_for_type(data_type)
         
-        # If no pipeline defined, use default pipeline for the data type
+        # If no pipeline, try to use built-in coercion
         if not pipeline:
-            pipeline = self._default_pipeline_for_type(data_type)
-        
-        # Process the value through the pipeline
-        result = value
+            return self._basic_coercion(value, data_type)
+            
+        # Apply each step of the pipeline
+        current_value = value
         for step in pipeline:
-            # Simple string step (e.g., "lowercase")
-            if isinstance(step, str):
-                processor = self._processors.get(step)
-                if processor:
-                    result = processor(result)
-            
-            # Dictionary step with parameters
-            elif isinstance(step, dict):
-                for op, params in step.items():
-                    processor = self._processors.get(op)
-                    if processor:
-                        result = processor(result, params)
-            
-            # Skip invalid steps
+            if isinstance(step, dict):
+                # Complex step with configuration
+                step_name = list(step.keys())[0] if step else None
+                if not step_name:
+                    continue
+                    
+                step_config = step[step_name]
+                current_value = self.apply_coercion_step(current_value, step_name, step_config)
             else:
-                continue
+                # Simple step name
+                current_value = self.apply_coercion_step(current_value, step)
                 
-        return result
+        return current_value
     
-    def _default_pipeline_for_type(self, data_type: DataType) -> List[Union[str, Dict[str, Any]]]:
+    def _basic_coercion(self, value: Any, data_type: DataType) -> Any:
         """
-        Get a default pipeline for a data type when no custom pipeline is defined.
+        Basic coercion for common data types when no pipeline is specified.
         
         Args:
-            data_type: The data type
+            value: The value to coerce
+            data_type: The target data type
             
         Returns:
-            List[Union[str, Dict[str, Any]]]: Default pipeline for the type
+            Any: The coerced value
         """
-        if data_type == DataType.BOOLEAN:
-            return [
-                "lowercase",
-                {"map_values": {
-                    "true": ["true", "yes", "on", "1"],
-                    "false": ["false", "no", "off", "0"]
-                }},
-                {"default": False}
-            ]
-        elif data_type == DataType.NUMBER:
-            return [
-                "try_int",
-                "try_float",
-                {"default": None}
-            ]
-        elif data_type == DataType.TAGS:
-            return [
-                {"split": {
-                    "separator": ",",
-                    "strip_whitespace": True
-                }}
-            ]
-        elif data_type == DataType.EMAIL_ADDRESS:
-            return [
-                "validate_email_format",
-                {"default": None}
-            ]
+        # Ensure value is properly converted from string input
+        if isinstance(value, str):
+            # String type coercions
+            if data_type == DataType.STRING:
+                return value
+            elif data_type == DataType.BOOLEAN:
+                lower_value = value.lower()
+                if lower_value in ["true", "yes", "1", "on"]:
+                    return True
+                elif lower_value in ["false", "no", "0", "off"]:
+                    return False
+                return bool(value)
+            elif data_type == DataType.NUMBER:
+                try:
+                    if "." in value:
+                        return float(value)
+                    return int(value)
+                except ValueError:
+                    return value  # Return original if conversion fails
+            elif data_type == DataType.TAGS:
+                # Split comma-separated string if needed
+                if "," in value:
+                    return [tag.strip() for tag in value.split(",")]
+                return [value]
+            
+        # Default case - return value unchanged if coercion not defined
+        return value
+    
+    def get_pipeline_for_type(self, data_type: DataType) -> List[Union[str, Dict[str, Any]]]:
+        """
+        Get the pipeline for a specific data type.
         
-        # Default to returning the value unchanged
-        return []
+        Args:
+            data_type: The target data type
+            
+        Returns:
+            List[Union[str, Dict[str, Any]]]: The pipeline for the data type
+        """
+        return self.pipelines.get(data_type.value, [])
+    
+    def apply_coercion_step(self, value: Any, step: Union[str, Dict[str, Any]], config: Any = None) -> Any:
+        """
+        Apply a single step of the pipeline to a value.
+        
+        Args:
+            value: The value to apply the step to
+            step: The step to apply
+            config: Configuration for the step
+            
+        Returns:
+            Any: The processed value
+        """
+        if isinstance(step, str):
+            processor = self._processors.get(step)
+            if processor:
+                return processor(value)
+        elif isinstance(step, dict):
+            step_name = list(step.keys())[0] if step else None
+            if step_name:
+                processor = self._processors.get(step_name)
+                if processor:
+                    return processor(value, config)
+        return value
     
     # Pipeline step processors
     
