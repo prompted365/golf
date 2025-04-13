@@ -211,7 +211,7 @@ default {default_rule} = {default_value}
         logger.debug(f"Field type: {field_type}")
         
         # Format field
-        field_path = f"input.resource.{field}"
+        field_path = f"input.resource.properties.{field}"
         
         # Format value based on field type
         if field_type == DataType.STRING or field_type == DataType.EMAIL_ADDRESS or field_type == DataType.USER or field_type == DataType.DOMAIN:
@@ -229,9 +229,14 @@ default {default_rule} = {default_value}
                     tags_check = []
                     for tag in value:
                         tags_check.append(f'"{tag}" in {field_path}')
-                    tags_expr = "; ".join(tags_check)
-                    count_expr = f"count({field_path}) == {len(value)}"
-                    return f"{tags_expr}; {count_expr}"
+                    
+                    # In Rego, each statement needs to be on its own line
+                    # Just check for tag inclusion, don't enforce exact count
+                    result = []
+                    for tag_check in tags_check:
+                        result.append(tag_check)
+                    
+                    return "\n    ".join(result)
                 elif operator == ConditionOperator.CONTAINS:
                     # Check if any of these tags are in the list - OR can still use pipes in Rego
                     tags_check = []
