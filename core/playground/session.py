@@ -4,10 +4,10 @@ from typing import Dict, List, Any, Optional
 import json
 from pydantic import BaseModel
 
-from permissions.parser import Tokenizer, Interpreter, StatementBuilder, PermissionParser
-from permissions.models import PermissionStatement, ResourceType, AccessType, BaseCommand
-from permissions.parser.interpreter import SchemaProvider
-from permissions.integrations import get_integration_mappings
+from core.parser import Tokenizer, Interpreter, StatementBuilder, PermissionParser
+from core.models import PermissionStatement, ResourceType, AccessType, BaseCommand
+from core.parser.interpreter import SchemaProvider
+from core.integrations import get_integration_mappings
 
 
 class TokenizationResult(BaseModel):
