@@ -18,16 +18,16 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 # Import integrations first to ensure they're registered
-from permissions.integrations import get_integration_mappings
-from permissions.integrations import gmail_integration, linear_integration
+from core.integrations import get_integration_mappings
+from core.integrations import gmail_integration, linear_integration
 
 # Now we can import from permissions directly
-from permissions.engine.opa_client import OPAClient
-from permissions.engine.policy_generator import RegoGenerator
-from permissions.parser.parser import PermissionParser
-from permissions.mapper import SimpleSchemaMapper
+from core.engine.opa_client import OPAClient
+from core.engine.policy_generator import RegoGenerator
+from core.parser.parser import PermissionParser
+from core.mapper import SimpleSchemaMapper
 
-from permissions.models import (
+from core.models import (
     ResourceType,
     SchemaMapping,
     FieldPath
@@ -160,7 +160,7 @@ async def main():
         
         # Example 5: Accessing the specification version
         try:
-            from permissions.spec import get_version
+            from core.spec import get_version
             print(f"\nSpecification version: {get_version()}")
         except ImportError:
             print("\nSpecification version module not available")

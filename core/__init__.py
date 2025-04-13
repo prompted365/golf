@@ -1,36 +1,111 @@
-from .context import ModuleContext, ModuleResult
-from .module import Module, BaseModule, ModuleMetadata, BaseModuleConfig
-from .manager import AuthedManager, PipelineConfig
-from .exceptions import (
-    AuthedError, PipelineError, ModuleError,
-    IdentityError, PermissionValidation, CredentialError, AuditError,
-    ConfigurationError, ModuleNotRegistered, ShutdownError
+"""Authed 2.0 - Runtime access control layer for secure agent-to-agent interactions."""
+
+# Base interfaces
+from .base import (
+    PermissionEngine,
+    SchemaMapper,
+    PermissionParser as BasePermissionParser,
+    PolicyGenerator,
+    BaseTokenizer, 
+    BaseInterpreter, 
+    BaseStatementBuilder,
+    BaseSchemaProvider
 )
 
+# Models
+from .models import (
+    AccessRequest, 
+    AccessResult, 
+    AccessType, 
+    ResourceType,
+    Resource, 
+    Condition,
+    ConditionOperator,
+    LogicalOperator,
+    PermissionStatement, 
+    RegoPolicy, 
+    SchemaMapping,
+    FieldPath,
+    Integration,
+    IntegrationResource,
+    IntegrationParameter,
+    DataType,
+    BaseCommand
+)
+
+# Parser components
+from .parser import (
+    Tokenizer,
+    Interpreter,
+    SchemaProvider,
+    StatementBuilder,
+    PermissionParser
+)
+
+# Engine components
+from .engine import (
+    OPAClient,
+    RegoGenerator
+)
+
+# Schema mapper
+from .mapper import SimpleSchemaMapper
+
+# Specification
+from .spec import get_specification, get_version as get_spec_version
+
+# Coercion engine
+from .coercion_engine import CoercionEngine
+
 __all__ = [
-    # Context
-    "ModuleContext",
-    "ModuleResult",
+    # Base interfaces
+    "PermissionEngine",
+    "SchemaMapper",
+    "BasePermissionParser",
+    "PolicyGenerator",
+    "BaseTokenizer",
+    "BaseInterpreter",
+    "BaseStatementBuilder",
+    "BaseSchemaProvider",
     
-    # Module
-    "Module",
-    "BaseModule",
-    "ModuleMetadata",
-    "BaseModuleConfig",
+    # Models
+    "AccessRequest",
+    "AccessResult",
+    "AccessType",
+    "ResourceType",
+    "Resource",
+    "Condition",
+    "ConditionOperator",
+    "LogicalOperator",
+    "PermissionStatement",
+    "RegoPolicy",
+    "SchemaMapping",
+    "FieldPath",
+    "Integration",
+    "IntegrationResource",
+    "IntegrationParameter",
+    "DataType",
+    "BaseCommand",
     
-    # Manager
-    "AuthedManager",
-    "PipelineConfig",
+    # Parser components
+    "Tokenizer",
+    "Interpreter",
+    "SchemaProvider",
+    "StatementBuilder",
+    "PermissionParser",
     
-    # Exceptions
-    "AuthedError",
-    "PipelineError",
-    "ModuleError",
-    "IdentityError",
-    "PermissionValidation",
-    "CredentialError",
-    "AuditError",
-    "ConfigurationError",
-    "ModuleNotRegistered",
-    "ShutdownError"
+    # Engine components
+    "OPAClient",
+    "RegoGenerator",
+    
+    # Schema mapper
+    "SimpleSchemaMapper",
+    
+    # Specification
+    "get_specification",
+    "get_spec_version",
+    
+    # Coercion engine
+    "CoercionEngine"
 ]
+

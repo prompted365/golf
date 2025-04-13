@@ -3,14 +3,14 @@
 from typing import List, Dict, Set
 import re
 
-from permissions.models import (
+from core.models import (
     BaseCommand, 
     AccessType, 
     ResourceType, 
     ConditionOperator,
     StructuralHelper
 )
-from permissions.integrations.linear import LINEAR_RESOURCES
+from core.integrations.linear import LINEAR_RESOURCES
 
 
 class Completer:

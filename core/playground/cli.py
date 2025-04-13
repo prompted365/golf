@@ -13,8 +13,8 @@ from prompt_toolkit.filters import is_searching
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.styles import Style
 
-from permissions.playground.session import PlaygroundSession
-from permissions.playground.completions import Completer
+from core.playground.session import PlaygroundSession
+from core.playground.completions import Completer
 
 
 class LiveCompleter(PTCompleter):
