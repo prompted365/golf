@@ -30,6 +30,12 @@ async def main():
         print("Please set this environment variable to your Linear API key before running this example.")
         return
     
+    # Print masked API key for debugging (only show first few characters)
+    if len(linear_api_key) > 10:
+        print(f"Using Linear API key: {linear_api_key[:4]}...{linear_api_key[-4:]}")
+    else:
+        print("API key seems to be too short or malformed")
+        
     # Initialize OPA client, schema mapper, and register integration
     async with OPAClient() as engine:
         # Set up schema mapper and register Linear integration
@@ -44,7 +50,7 @@ async def main():
         permission_statements = [
             "GIVE READ ACCESS TO ISSUES WITH PRIORITY = 1",
             "GIVE READ ACCESS TO TEAMS",
-            "DENY READ ACCESS TO ISSUES WITH PRIORITY GREATER_THAN 3"
+            "DENY READ ACCESS TO ISSUES WITH PRIORITY = 3"
         ]
         
         # Add permissions to OPA
