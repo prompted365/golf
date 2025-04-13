@@ -1,13 +1,13 @@
 """Linear integration mappings for the permissions system."""
 
-from ..models import DataType, ResourceType, StructuralHelper, Integration, IntegrationResource
+from ..models import DataType, ResourceType, StructuralHelper, Integration, IntegrationResource, IntegrationParameter
 
 # Linear resource definitions
 LINEAR_RESOURCES = {
     # Helper mappings for structural helpers
     "_helper_mappings": {
-        StructuralHelper.TAGGED.value: "tags",
-        StructuralHelper.NAMED.value: "name",
+        StructuralHelper.TAGGED.value: "labels",
+        StructuralHelper.NAMED.value: "title",  # For issues, "name" maps to "title"
         StructuralHelper.ASSIGNED_TO.value: "assignee",
     },
     
@@ -18,7 +18,8 @@ LINEAR_RESOURCES = {
             {"map_values": {
                 "true": ["true", "yes", "on", "1", "active", "enabled"],
                 "false": ["false", "no", "off", "0", "inactive", "disabled"]
-            }}
+            }},
+            {"default": False}
         ],
         DataType.TAGS.value: [
             {"split": {
@@ -29,6 +30,12 @@ LINEAR_RESOURCES = {
         DataType.NUMBER.value: [
             "try_int",
             "try_float"
+        ],
+        DataType.USER.value: [
+            "lowercase"  # Convert user names to lowercase for case-insensitive comparison
+        ],
+        DataType.DATETIME.value: [
+            # No transformation needed, handled by API response format
         ]
     },
     
@@ -39,7 +46,7 @@ LINEAR_RESOURCES = {
             "description": "Unique identifier of the issue"
         },
         "title": {
-            "permission_field": "name",
+            "permission_field": "name",  # Maps to internal field "name"
             "data_type": DataType.STRING.value,
             "description": "Title of the issue"
         },
@@ -54,7 +61,7 @@ LINEAR_RESOURCES = {
             "description": "User assigned to the issue"
         },
         "labels": {
-            "permission_field": "tags",
+            "permission_field": "tags",  # Maps to internal field "tags"
             "data_type": DataType.TAGS.value,
             "description": "Labels/tags applied to the issue"
         },
@@ -73,9 +80,14 @@ LINEAR_RESOURCES = {
             "data_type": DataType.DATETIME.value,
             "description": "Date when the issue was last updated"
         },
+        "priority": {
+            "permission_field": "priority",
+            "data_type": DataType.NUMBER.value,
+            "description": "Priority level of the issue"
+        },
         "metadata": {
             "api_name": "Linear API",
-            "api_version": "v1",
+            "api_version": "v2",
             "description": "Linear project management service"
         }
     },
@@ -95,6 +107,11 @@ LINEAR_RESOURCES = {
             "data_type": DataType.STRING.value,
             "description": "Short key of the team"
         },
+        "description": {
+            "permission_field": "description",
+            "data_type": DataType.STRING.value,
+            "description": "Description of the team"
+        },
         "owner": {
             "permission_field": "owner",
             "data_type": DataType.USER.value,
@@ -102,21 +119,43 @@ LINEAR_RESOURCES = {
         },
         "metadata": {
             "api_name": "Linear API",
-            "api_version": "v1",
+            "api_version": "v2",
             "description": "Linear project management service - Teams"
         }
     }
 }
 
-# Create Linear integration resource objects
+# Create Linear integration resource objects with parameters
 linear_issues_resource = IntegrationResource(
     resource_type=ResourceType.ISSUES,
-    parameters=[]  # You can add parameters if needed
+    parameters=[
+        IntegrationParameter(
+            name="assignee",
+            data_type=DataType.USER,
+            description="Filter issues by assignee"
+        ),
+        IntegrationParameter(
+            name="labels",
+            data_type=DataType.TAGS,
+            description="Filter issues by labels/tags"
+        ),
+        IntegrationParameter(
+            name="status",
+            data_type=DataType.STRING,
+            description="Filter issues by status"
+        )
+    ]
 )
 
 linear_teams_resource = IntegrationResource(
     resource_type=ResourceType.TEAMS,
-    parameters=[]  # You can add parameters if needed
+    parameters=[
+        IntegrationParameter(
+            name="owner",
+            data_type=DataType.USER,
+            description="Filter teams by owner"
+        )
+    ]
 )
 
 # Create and register the Linear integration
