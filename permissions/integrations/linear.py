@@ -12,21 +12,6 @@ LINEAR_RESOURCES = {
         StructuralHelper.ASSIGNED_TO.value: "assignee",
     },
     
-    # Type interpretation rules
-    "_type_interpretation": {
-        DataType.BOOLEAN.value: {
-            "true_values": ["true", "yes", "on", "1"],
-            "false_values": ["false", "no", "off", "0"]
-        },
-        DataType.TAGS.value: {
-            "separator": ",",
-            "strip_whitespace": True
-        },
-        DataType.NUMBER.value: {
-            "parse_as_int_first": True
-        }
-    },
-    
     ResourceType.ISSUES.value: {
         "id": {
             "permission_field": "id",

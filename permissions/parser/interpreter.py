@@ -33,8 +33,7 @@ class SchemaProvider(BaseSchemaProvider):
     """
     Implementation of BaseSchemaProvider that uses integration mappings.
     
-    This implementation loads all field mappings and type information from
-    integration definitions.
+    This implementation loads field mappings from integration definitions.
     """
     
     def __init__(self, integration_mappings: Optional[Dict[str, Dict[str, Any]]] = None):
@@ -50,9 +49,6 @@ class SchemaProvider(BaseSchemaProvider):
         
         # Load helper mappings from integrations
         self.helper_mappings = self._load_helper_mappings()
-        
-        # Load type interpretation rules
-        self.type_interpretation = self._load_type_interpretation()
         
     def _load_helper_mappings(self) -> Dict[StructuralHelper, Dict[str, Any]]:
         """
@@ -82,49 +78,6 @@ class SchemaProvider(BaseSchemaProvider):
                         
         return helper_mappings
         
-    def _load_type_interpretation(self) -> Dict[DataType, Dict[str, Any]]:
-        """
-        Load type interpretation rules from integration definitions.
-        
-        Returns:
-            Dict[DataType, Dict[str, Any]]: Dictionary mapping data types to their interpretation rules
-        """
-        type_interpretation = {}
-        
-        # Iterate through all integrations
-        for integration_name, integration_data in self.integration_mappings.items():
-            # Check if the integration has type interpretation rules
-            if "_type_interpretation" in integration_data:
-                type_rules = integration_data["_type_interpretation"]
-                
-                # Process each type's rules
-                for type_str, rules in type_rules.items():
-                    try:
-                        data_type = DataType(type_str)
-                        if data_type not in type_interpretation:
-                            type_interpretation[data_type] = {}
-                        
-                        # Merge in the rules from this integration
-                        # In case of conflict, last one wins
-                        type_interpretation[data_type].update(rules)
-                    except ValueError:
-                        # Skip invalid data type values
-                        pass
-                        
-        return type_interpretation
-    
-    def get_type_rules(self, data_type: DataType) -> Dict[str, Any]:
-        """
-        Get the interpretation rules for a given data type.
-        
-        Args:
-            data_type: The data type to get rules for
-            
-        Returns:
-            Dict[str, Any]: The interpretation rules for the type, or empty dict if none defined
-        """
-        return self.type_interpretation.get(data_type, {})
-        
     def map_field(self, helper: StructuralHelper, field_token: str) -> Optional[str]:
         """
         Map a field token based on the structural helper.
@@ -151,74 +104,6 @@ class SchemaProvider(BaseSchemaProvider):
         # If no mapping found, just return the lowercase field token
         return field_token.lower()
     
-    def convert_value(self, value: str, data_type: DataType) -> Any:
-        """
-        Convert a value based on the data type's rules from the integration mappings.
-        
-        Args:
-            value: The value to convert
-            data_type: The target data type
-            
-        Returns:
-            Any: The converted value
-        """
-        # Get the rules for this data type
-        rules = self.get_type_rules(data_type)
-        
-        # Handle based on data type
-        if data_type == DataType.BOOLEAN:
-            # Check if the value is in the true_values list
-            true_values = rules.get("true_values", ["true", "yes", "1", "on"])
-            false_values = rules.get("false_values", ["false", "no", "0", "off"])
-            
-            # Case-insensitive comparison
-            value_lower = value.lower()
-            if value_lower in true_values:
-                return True
-            elif value_lower in false_values:
-                return False
-            
-            # Default to Python's bool() if not in either list
-            return bool(value)
-            
-        elif data_type == DataType.NUMBER:
-            # Try to convert to int or float
-            parse_as_int_first = rules.get("parse_as_int_first", True)
-            
-            try:
-                if parse_as_int_first:
-                    return int(value)
-                else:
-                    return float(value)
-            except ValueError:
-                if parse_as_int_first:
-                    try:
-                        return float(value)
-                    except ValueError:
-                        return value
-                else:
-                    return value
-                    
-        elif data_type == DataType.TAGS:
-            # Handle list conversion
-            if isinstance(value, list):
-                return value
-                
-            separator = rules.get("separator", ",")
-            strip_whitespace = rules.get("strip_whitespace", True)
-            
-            if separator in value:
-                if strip_whitespace:
-                    return [tag.strip() for tag in value.split(separator)]
-                else:
-                    return value.split(separator)
-            
-            # Single tag
-            return [value]
-            
-        # Default to returning as-is
-        return value
-        
     def get_field_type(self, field: str, resource_type: ResourceType) -> Optional[DataType]:
         """
         Get the data type of a field for a specific resource.
@@ -448,13 +333,8 @@ class Interpreter(BaseInterpreter):
                 if field_type is None:
                     field_type = self._infer_data_type(token)
                 
-                # Convert the value based on its type, using schema provider's rules if available
-                converted_value = token
-                if self.schema_provider and isinstance(self.schema_provider, SchemaProvider):
-                    converted_value = self.schema_provider.convert_value(token, field_type)
-                else:
-                    # Fallback to our simple converter
-                    converted_value = self._convert_value(token, field_type)
+                # Convert the value based on its type
+                converted_value = self._convert_value(token, field_type)
                 
                 result["conditions"].append({
                     "field": current_condition["field"],
@@ -552,31 +432,28 @@ class Interpreter(BaseInterpreter):
         Returns:
             Any: The converted value
         """
-        # Handle conversions based on the target data type
+        # Simple type conversions
         if data_type == DataType.BOOLEAN:
-            # Use a simple heuristic for boolean conversion 
-            # This should ideally be configurable per integration
+            # Basic boolean conversion
             value_lower = value.lower()
-            if value_lower in ["true", "yes", "on", "1"]:
+            if value_lower in ["true", "yes", "1", "on"]:
                 return True
-            elif value_lower in ["false", "no", "off", "0"]:
+            elif value_lower in ["false", "no", "0", "off"]:
                 return False
-            return bool(value)  # Default Python truthiness
+            return bool(value)
             
         elif data_type == DataType.NUMBER:
+            # Try integer first, then float
             try:
-                # Try integer first
                 return int(value)
             except ValueError:
                 try:
-                    # Then float
                     return float(value)
                 except ValueError:
-                    # If conversion fails, leave as string
                     return value
                     
         elif data_type == DataType.TAGS:
-            # Handle tags as list
+            # Simple comma-separated list handling
             if isinstance(value, list):
                 return value
             elif "," in value:
@@ -584,5 +461,5 @@ class Interpreter(BaseInterpreter):
             else:
                 return [value]
                 
-        # For all other types, return as string
+        # Return as string for all other types
         return value 
