@@ -1,6 +1,6 @@
 """Linear integration mappings for the permissions system."""
 
-from ..models import DataType, ResourceType, StructuralHelper, Integration
+from ..models import DataType, ResourceType, StructuralHelper, Integration, IntegrationResource
 
 # Linear resource definitions
 LINEAR_RESOURCES = {
@@ -108,9 +108,20 @@ LINEAR_RESOURCES = {
     }
 }
 
+# Create Linear integration resource objects
+linear_issues_resource = IntegrationResource(
+    resource_type=ResourceType.ISSUES,
+    parameters=[]  # You can add parameters if needed
+)
+
+linear_teams_resource = IntegrationResource(
+    resource_type=ResourceType.TEAMS,
+    parameters=[]  # You can add parameters if needed
+)
+
 # Create and register the Linear integration
 linear_integration = Integration(
     name="linear",
-    resources=LINEAR_RESOURCES,
+    resources=[linear_issues_resource, linear_teams_resource],
     description="Linear project management API integration"
 ) 

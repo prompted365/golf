@@ -1,6 +1,6 @@
 """Gmail integration mappings for the permissions system."""
 
-from ..models import DataType, ResourceType, StructuralHelper, Integration
+from ..models import DataType, ResourceType, StructuralHelper, Integration, IntegrationResource
 
 # Gmail resource definitions
 GMAIL_RESOURCES = {
@@ -99,9 +99,20 @@ GMAIL_RESOURCES = {
     }
 }
 
+# Create Gmail integration resource objects
+gmail_emails_resource = IntegrationResource(
+    resource_type=ResourceType.EMAILS,
+    parameters=[]  # You can add parameters if needed
+)
+
+gmail_attachments_resource = IntegrationResource(
+    resource_type=ResourceType.ATTACHMENTS,
+    parameters=[]  # You can add parameters if needed
+)
+
 # Create and register the Gmail integration
 gmail_integration = Integration(
     name="gmail",
-    resources=GMAIL_RESOURCES,
+    resources=[gmail_emails_resource, gmail_attachments_resource],
     description="Google Mail API integration"
 ) 
