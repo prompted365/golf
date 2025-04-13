@@ -50,11 +50,27 @@ class LinearClient:
             Dict[str, Any]: The query result
         """
         try:
+            print(f"Executing GraphQL query with variables: {variables}")
+            
             response = await self.http_client.post(
                 self.api_url,
                 headers=self.headers,
                 json={"query": query, "variables": variables or {}}
             )
+            
+            # Print full response status and body for debugging
+            print(f"Response status: {response.status_code}")
+            try:
+                response_json = response.json()
+                print(f"Response body: {response_json}")
+                
+                if "errors" in response_json:
+                    error_details = response_json["errors"]
+                    print(f"GraphQL errors: {error_details}")
+            except Exception as e:
+                print(f"Could not parse response as JSON: {str(e)}")
+                print(f"Response text: {response.text}")
+            
             response.raise_for_status()
             
             result = response.json()
@@ -67,6 +83,14 @@ class LinearClient:
             return result.get("data", {})
         except httpx.HTTPStatusError as e:
             error_msg = f"HTTP error {e.response.status_code} querying Linear API: {str(e)}"
+            
+            # Try to extract more details from the error response
+            try:
+                error_response = e.response.json()
+                error_msg += f"\nError details: {error_response}"
+            except Exception:
+                error_msg += f"\nRaw response: {e.response.text}"
+                
             logger.error(error_msg)
             raise RuntimeError(error_msg)
         except httpx.RequestError as e:
