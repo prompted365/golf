@@ -324,14 +324,13 @@ class BaseSchemaProvider(ABC):
     """Interface for providing schema information about resources, fields, and types."""
     
     @abstractmethod
-    def map_field(self, helper: StructuralHelper, field_token: str, resource_type: ResourceType) -> Optional[str]:
+    def map_field(self, helper: StructuralHelper, field_token: str) -> Optional[str]:
         """
-        Map a field token to an internal permission field based on the structural helper and resource type.
+        Map a field token to an internal permission field based on the structural helper.
         
         Args:
             helper: The structural helper used in the permission statement
             field_token: The field token from the statement
-            resource_type: The resource type being accessed
             
         Returns:
             Optional[str]: The mapped internal field name, or None if no mapping exists
