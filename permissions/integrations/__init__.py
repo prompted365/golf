@@ -7,42 +7,4 @@
 # __all__ = [
 #     "gmail_integration",
 #     "linear_integration"
-# ]
-
-"""Integration mappings for the permissions system."""
-
-from typing import Dict, Any, Optional
-
-# Global registry of integration mappings
-_INTEGRATION_MAPPINGS: Dict[str, Dict[str, Any]] = {}
-
-def register_integration(integration_name: str, resources: Dict[str, Any]) -> None:
-    """
-    Register an integration's resource mappings.
-    
-    Args:
-        integration_name: Name of the integration (e.g., "gmail", "linear")
-        resources: Dictionary mapping resource types to their field definitions
-    """
-    _INTEGRATION_MAPPINGS[integration_name] = resources
-
-def get_integration_mappings() -> Dict[str, Dict[str, Any]]:
-    """
-    Get all registered integration mappings.
-    
-    Returns:
-        Dict[str, Dict[str, Any]]: Dictionary mapping integration names to their resource definitions
-    """
-    return _INTEGRATION_MAPPINGS
-
-def get_integration(integration_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Get a specific integration's mappings.
-    
-    Args:
-        integration_name: Name of the integration to get
-        
-    Returns:
-        Optional[Dict[str, Any]]: The integration's resource definitions, or None if not found
-    """
-    return _INTEGRATION_MAPPINGS.get(integration_name) 
+# ] 
