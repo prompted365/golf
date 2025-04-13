@@ -54,6 +54,9 @@ from .mapper import SimpleSchemaMapper
 # Specification
 from .spec import get_specification, get_version as get_spec_version
 
+# Coercion engine
+from .coercion_engine import CoercionEngine
+
 __all__ = [
     # Base interfaces
     "PermissionEngine",
@@ -100,6 +103,9 @@ __all__ = [
     
     # Specification
     "get_specification",
-    "get_spec_version"
+    "get_spec_version",
+    
+    # Coercion engine
+    "CoercionEngine"
 ]
 
