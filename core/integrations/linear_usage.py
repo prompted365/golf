@@ -39,7 +39,7 @@ async def main():
         permission_statements = [
             "GIVE READ ACCESS TO ISSUES WITH PRIORITY = 1",
             "GIVE READ ACCESS TO TEAMS",
-            "DENY READ ACCESS TO ISSUES WITH PRIORITY > 3"
+            "DENY READ ACCESS TO ISSUES WITH PRIORITY GREATER_THAN 3"
         ]
         
         # Add permissions to OPA
@@ -116,8 +116,8 @@ async def main():
         async with LinearClientWithPermissions(api_key=linear_api_key) as client:
             # The wrapped client methods now have permission checks
             print("Fetching issues with permission checks...")
-            issues, has_more = await client.fetch_issues(priority=1)
-            print(f"Retrieved {len(issues)} issues with priority 1")
+            issues, has_more = await client.fetch_issues(labels=["priority:1"])
+            print(f"Retrieved {len(issues)} issues with priority label")
             
             print("\nFetching teams with permission checks...")
             teams, has_more = await client.fetch_teams()
