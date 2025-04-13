@@ -1,35 +1,201 @@
 #!/usr/bin/env python3
-"""Interactive CLI for testing permission statements."""
+"""Interactive CLI for testing permission statements with live suggestions."""
 
-import cmd
 import json
 import argparse
+from typing import Dict, Any
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer as PTCompleter, Completion
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.filters import is_searching
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.styles import Style
 
 from permissions.playground.session import PlaygroundSession
 from permissions.playground.completions import Completer
 
 
-class PermissionShell(cmd.Cmd):
+class LiveCompleter(PTCompleter):
     """
-    Interactive shell for testing permission statements.
+    Live completer for permission statements using prompt_toolkit.
+    
+    This class provides real-time suggestions as the user types.
+    """
+    
+    def __init__(self, completer: Completer, commands: Dict[str, Any]):
+        """
+        Initialize the live completer.
+        
+        Args:
+            completer: The permission statement completer
+            commands: Dictionary of available commands
+        """
+        self.completer = completer
+        self.commands = commands
+    
+    def get_completions(self, document, complete_event):
+        """
+        Get completions for the current document.
+        
+        Args:
+            document: The document being edited
+            complete_event: The completion event
+            
+        Yields:
+            Completion: Completion suggestions
+        """
+        text = document.text
+        cursor_position = document.cursor_position
+        
+        # Check if this is a command
+        if text.startswith(':'):
+            cmd_parts = text[1:].split()
+            cmd = cmd_parts[0] if cmd_parts else ""
+            
+            # If we're typing a command name
+            if len(cmd_parts) <= 1 and not text.endswith(' '):
+                for command in self.commands:
+                    if command.startswith(cmd):
+                        yield Completion(
+                            command, 
+                            start_position=-len(cmd),
+                            display_meta="Command"
+                        )
+            
+            # Suggest arguments for specific commands
+            elif len(cmd_parts) > 0 and text.endswith(' '):
+                if cmd == "fields" or cmd == "suggest":
+                    for rt in self.completer.resource_types:
+                        yield Completion(
+                            rt,
+                            start_position=0,
+                            display_meta="Resource Type"
+                        )
+                elif cmd == "suggest" or cmd == "options":
+                    for context in ["command", "access", "resource", "helper", "operator"]:
+                        yield Completion(
+                            context,
+                            start_position=0,
+                            display_meta="Context"
+                        )
+            
+        # For permission statements
+        else:
+            # Special case: If the text ends with "ACCESS TO " suggest resource types
+            if text.upper().endswith("ACCESS TO "):
+                for rt in self.completer.resource_types:
+                    yield Completion(
+                        rt,
+                        start_position=0,
+                        display_meta="Resource Type"
+                    )
+                return
+                
+            # Get suggestions from the completer
+            suggestions = self.completer.complete(text, cursor_position)
+            
+            # If text ends with a space, suggest the next element
+            if text.endswith(' '):
+                # Try to determine context based on tokens so far
+                words = text.strip().split()
+                
+                # After "GIVE" or "DENY", suggest access types
+                if len(words) == 1 and words[0].upper() in self.completer.base_commands:
+                    for access_type in self.completer.access_types:
+                        yield Completion(
+                            access_type,
+                            start_position=0,
+                            display_meta="Access Type"
+                        )
+                # After a resource type, suggest structural helpers
+                elif len(words) >= 2 and words[-1].upper() in self.completer.resource_types:
+                    for helper in self.completer.structural_helpers:
+                        yield Completion(
+                            helper,
+                            start_position=0,
+                            display_meta="Structural Helper"
+                        )
+                # After "WITH", suggest fields for the resource
+                elif len(words) >= 3 and words[-1].upper() == "WITH" and words[-2].upper() in self.completer.resource_types:
+                    resource_type = words[-2].upper()
+                    fields = self.completer._get_fields_for_resource(resource_type)
+                    for field in sorted(fields):
+                        yield Completion(
+                            field,
+                            start_position=0,
+                            display_meta=f"Field ({resource_type})"
+                        )
+                # After other structural helpers like TAGGED, suggest "="
+                elif len(words) >= 3 and words[-1].upper() in self.completer.structural_helpers:
+                    yield Completion(
+                        "=",
+                        start_position=0,
+                        display_meta="Operator"
+                    )
+                # After a field name, suggest operators
+                elif len(words) >= 4 and words[-2].upper() in self.completer.structural_helpers:
+                    for op in ["=", "IS", "IS NOT", "CONTAINS"]:
+                        yield Completion(
+                            op,
+                            start_position=0,
+                            display_meta="Operator"
+                        )
+                    
+                return
+            
+            # Get current word
+            if text and cursor_position > 0:
+                current_word = ""
+                i = cursor_position - 1
+                while i >= 0 and text[i].isalnum():
+                    current_word = text[i] + current_word
+                    i -= 1
+                
+                for suggestion in suggestions:
+                    if suggestion.upper().startswith(current_word.upper()):
+                        display_meta = self._get_category(suggestion)
+                        yield Completion(
+                            suggestion, 
+                            start_position=-len(current_word),
+                            display_meta=display_meta
+                        )
+    
+    def _get_category(self, suggestion: str) -> str:
+        """
+        Get the category of a suggestion for display purposes.
+        
+        Args:
+            suggestion: The suggestion text
+            
+        Returns:
+            str: The category name
+        """
+        if suggestion in self.completer.base_commands:
+            return "Command"
+        elif suggestion in self.completer.access_types:
+            return "Access Type"
+        elif suggestion in self.completer.resource_types:
+            return "Resource Type"
+        elif suggestion in self.completer.structural_helpers:
+            return "Structural Helper"
+        elif suggestion in self.completer.condition_operators:
+            return "Operator"
+        return ""
+
+
+class PermissionCLI:
+    """
+    Interactive CLI for testing permission statements with live suggestions.
     
     This class provides a command-line interface for experimenting
     with permission statements, seeing how they are tokenized, interpreted,
     and eventually translated into OPA inputs.
     """
     
-    intro = """
-Permission Statement Playground
-==============================
-Type permission statements to see how they are processed.
-Type :help or ? to see available commands.
-Type :exit or Ctrl-D to exit.
-"""
-    prompt = '> '
-    
     def __init__(self):
-        """Initialize the shell with a playground session."""
-        super().__init__()
+        """Initialize the CLI with a playground session."""
         self.session = PlaygroundSession()
         self.completer = Completer()
         
@@ -47,22 +213,58 @@ Type :exit or Ctrl-D to exit.
             "suggest": self.do_suggest,
             "options": self.do_suggest,
         }
-    
-    def default(self, line: str) -> bool:
-        """
-        Process permission statements or handle custom commands.
         
-        This method is called when the line is not recognized as a built-in command.
-        It handles both custom commands (starting with :) and permission statements.
+        # Create prompt session with live completion
+        self.history = InMemoryHistory()
+        
+        # Create key bindings
+        kb = KeyBindings()
+        
+        # Add keybinding for Tab to show completions
+        @kb.add('tab')
+        def _(event):
+            # Force completions to show
+            event.app.current_buffer.start_completion(select_first=False)
+        
+        # Define styles
+        style = Style.from_dict({
+            'completion-menu.completion': 'bg:#008888 #ffffff',
+            'completion-menu.completion.current': 'bg:#00aaaa #000000',
+            'completion-menu.meta.completion': 'bg:#44aaff #ffffff',
+            'completion-menu.meta.completion.current': 'bg:#00aaaa #000000',
+        })
+        
+        # Configure prompt_toolkit with more aggressive settings
+        self.prompt_session = PromptSession(
+            completer=LiveCompleter(self.completer, self.commands),
+            history=self.history,
+            complete_while_typing=True,
+            complete_in_thread=False,  # Disable threading to ensure completions appear
+            enable_history_search=True,
+            key_bindings=kb,
+            style=style,
+            complete_style='MULTI_COLUMN',  # Show completions in columns
+            auto_suggest=None,  # Disable auto-suggest which can interfere
+            mouse_support=True,  # Enable mouse support
+            bottom_toolbar=HTML('<b>Press TAB for completions</b>'),
+        )
+    
+    def process_line(self, line: str) -> bool:
+        """
+        Process a line of input from the user.
         
         Args:
-            line: The permission statement or command
+            line: The input line
             
         Returns:
-            bool: False to continue
+            bool: True to exit, False to continue
         """
         # Strip any leading or trailing whitespace
         line = line.strip()
+        
+        # Skip empty lines
+        if not line:
+            return False
         
         # Check if this is a command (starts with : or .)
         if line.startswith(':'):
@@ -118,6 +320,63 @@ Type :exit or Ctrl-D to exit.
             
         return False
     
+    def run(self):
+        """Run the CLI."""
+        print("""
+Permission Statement Playground
+==============================
+Type permission statements to see how they are processed.
+Type :help or ? to see available commands.
+Type :exit or Ctrl-D to exit.
+
+Suggestions appear as you type! Press TAB to force completion menu.
+""")
+
+        # Main command loop
+        try:
+            # Try using the prompt_toolkit interface
+            while True:
+                try:
+                    # Get input with live completion
+                    line = self.prompt_session.prompt('> ')
+                    
+                    # Process input - if it returns True, exit
+                    if self.process_line(line):
+                        break
+                        
+                except KeyboardInterrupt:
+                    # Handle Ctrl+C
+                    print("\nOperation interrupted.")
+                    continue
+                except EOFError:
+                    # Handle Ctrl+D
+                    print("\nExiting...")
+                    break
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
+        except Exception as e:
+            # If prompt_toolkit fails, fall back to basic input mode
+            print(f"\nAdvanced completion mode failed: {e}")
+            print("Falling back to basic input mode (no completions).")
+            print("Type :suggest to see available options.")
+            
+            # Basic input loop
+            while True:
+                try:
+                    line = input('> ')
+                    if self.process_line(line):
+                        break
+                except KeyboardInterrupt:
+                    print("\nOperation interrupted.")
+                    continue
+                except EOFError:
+                    print("\nExiting...")
+                    break
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
+    
     def do_exit(self, arg: str) -> bool:
         """
         Exit the shell.
@@ -165,6 +424,8 @@ Available commands:
 You can also type permission statements directly:
   GIVE READ ACCESS TO ISSUES TAGGED = urgent
   DENY WRITE ACCESS TO ISSUES ASSIGNED TO antoni
+
+TIP: As you type, suggestions will appear automatically!
 """)
         return False
     
@@ -291,100 +552,6 @@ You can also type permission statements directly:
         print(json.dumps(self.session.last_result.opa_input.input, indent=2))
         return False
     
-    def emptyline(self) -> bool:
-        """
-        Handle empty line input.
-        
-        Returns:
-            bool: False to continue
-        """
-        return False
-    
-    def completedefault(self, text, line, begidx, endidx):
-        """
-        Provide tab completions for permission statements.
-        
-        This method is called by the cmd module when tab is pressed.
-        It uses the Completer class to generate context-aware suggestions.
-        
-        Args:
-            text: The text to complete
-            line: The complete line
-            begidx: The beginning index of the text
-            endidx: The ending index of the text
-            
-        Returns:
-            List[str]: Completion options
-        """
-        # Check if line starts with a command
-        if line.startswith(':'):
-            # Get command name
-            cmd_name = line[1:].split()[0] if len(line) > 1 else ""
-            
-            # If we're still typing the command name, suggest command names
-            if begidx <= len(cmd_name) + 1:
-                return [cmd + " " for cmd in self.commands if cmd.startswith(text)]
-            
-            # For the :fields command, suggest resource types
-            if cmd_name == "fields" and len(line.split()) <= 2:
-                return [rt for rt in self.completer.resource_types if rt.startswith(text.upper())]
-                
-            return []
-        
-        # For permission statements, use the completer
-        suggestions = self.completer.complete(line, endidx)
-        
-        # Filter suggestions by the text being completed
-        return [s for s in suggestions if s.upper().startswith(text.upper())]
-    
-    def complete(self, text, state):
-        """
-        Return the next possible completion for 'text'.
-        
-        This overrides the default complete method to provide more control.
-        
-        Args:
-            text: The text to complete
-            state: The state of completion (0 for first match, 1 for second, etc.)
-            
-        Returns:
-            str: The completion option or None if no more options
-        """
-        try:
-            # Get the buffer from readline directly
-            import readline
-            line = readline.get_line_buffer()
-            begidx = readline.get_begidx()
-            endidx = readline.get_endidx()
-            
-            # Handle different types of completions
-            if line.startswith(':'):
-                # Command completions
-                matches = self.completedefault(text, line, begidx, endidx)
-            else:
-                # Permission statement completions
-                suggestions = self.completer.complete(line, endidx)
-                matches = [s for s in suggestions if s.upper().startswith(text.upper())]
-            
-            # Return the match based on state
-            if state < len(matches):
-                return matches[state]
-            return None
-            
-        except Exception as e:
-            print(f"\nError in completion: {str(e)}")
-            return None
-            
-    def do_EOF(self, arg: str) -> bool:
-        """
-        Handle Ctrl-D.
-        
-        Returns:
-            bool: True to exit
-        """
-        print("\nExiting...")
-        return True
-    
     def do_suggest(self, arg: str) -> bool:
         """
         Show available options for the current context.
@@ -455,8 +622,8 @@ def parse_args():
 def start_cli():
     """Start the interactive CLI."""
     args = parse_args()
-    shell = PermissionShell()
-    shell.cmdloop()
+    cli = PermissionCLI()
+    cli.run()
 
 
 if __name__ == '__main__':
