@@ -161,6 +161,29 @@ class SchemaProvider(BaseSchemaProvider):
                     metadata.update(resource_data["metadata"])
         
         return metadata
+        
+    def get_resource_fields(self, resource_type: ResourceType) -> Dict[str, Dict[str, Any]]:
+        """
+        Get all fields available for a specific resource type.
+        
+        Args:
+            resource_type: The resource type
+            
+        Returns:
+            Dict[str, Dict[str, Any]]: Dictionary of field definitions
+        """
+        fields = {}
+        
+        # Collect fields from all integrations that define this resource type
+        for integration_name, integration_data in self.integration_mappings.items():
+            if resource_type.value in integration_data:
+                resource_data = integration_data[resource_type.value]
+                # Add all fields except special entries that start with underscore
+                for field_name, field_data in resource_data.items():
+                    if not field_name.startswith('_'):
+                        fields[field_name] = field_data
+        
+        return fields
 
 class Interpreter(BaseInterpreter):
     """Simple implementation of the BaseInterpreter."""
@@ -285,13 +308,34 @@ class Interpreter(BaseInterpreter):
                         raise ValueError(f"Expected a structural helper (WITH, NAMED, etc.) or end of statement, got {token}")
             
             elif state == "CONDITION_FIELD":
-                # Field name for the condition
-                current_condition["field"] = self._map_field_from_helper(current_condition["helper"], token)
-                state = "CONDITION_OPERATOR"
+                # If the token is an operator or equals sign, it means we're using the default field for this helper
+                if token == "=" or token in [op.value for op in ConditionOperator]:
+                    # Get the default field for this helper from the mappings
+                    if self.schema_provider and "helper" in current_condition:
+                        field = self.schema_provider.map_field(current_condition["helper"], "")
+                        current_condition["field"] = field or current_condition["helper"].value.lower()
+                    else:
+                        current_condition["field"] = current_condition["helper"].value.lower()
+                    
+                    # Immediately process this token as an operator
+                    state = "CONDITION_OPERATOR"
+                    # Don't increment i, reprocess this token as the operator
+                    continue
+                else:
+                    # Normal case - token is a field name
+                    current_condition["field"] = self._map_field_from_helper(current_condition["helper"], token)
+                    state = "CONDITION_OPERATOR"
             
             elif state == "CONDITION_OPERATOR":
                 # Operator for the condition
                 try:
+                    # Handle the equals sign as IS operator
+                    if token == "=":
+                        current_condition["operator"] = ConditionOperator.IS
+                        state = "CONDITION_VALUE"
+                        i += 1
+                        continue
+                    
                     # Check for compound operators like "IS NOT", "GREATER THAN", etc.
                     # Simple 2-token operators
                     compound_operators = {
@@ -335,8 +379,16 @@ class Interpreter(BaseInterpreter):
                 if self.schema_provider and "resource_type" in result:
                     field_type = self.schema_provider.get_field_type(current_condition["field"], result["resource_type"])
                 
+                # Default to STRING if field_type is None
+                if field_type is None:
+                    field_type = DataType.STRING  # Default to string for unknown field types
+                
                 # Coerce the value using our pipeline engine
-                converted_value = self.coercion_engine.coerce(token, field_type)
+                try:
+                    converted_value = self.coercion_engine.coerce(token, field_type)
+                except Exception as e:
+                    # If coercion fails, use the original value
+                    converted_value = token
                 
                 result["conditions"].append({
                     "field": current_condition["field"],

@@ -210,7 +210,15 @@ class Tokenizer(BaseTokenizer):
             # Try to match condition operators (IS, CONTAINS, etc.)
             operator_match = re.match(f'^({self.patterns["condition_operator"]})', remaining, re.IGNORECASE)
             if operator_match:
-                tokens.append(operator_match.group(1).upper())
+                operator_token = operator_match.group(1).upper()
+                
+                # If the previous token was also an operator, log a warning
+                # This typically happens when someone types something like "= CONTAINS", which is invalid
+                if tokens and tokens[-1] in self.patterns["condition_operator"].split("|") + ["="]:
+                    logger.warning(f"Ignoring duplicate operator: {operator_token} after {tokens[-1]}")
+                else:
+                    tokens.append(operator_token)
+                    
                 remaining = remaining[operator_match.end():]
                 matched = True
                 continue
