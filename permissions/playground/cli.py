@@ -44,6 +44,8 @@ Type :exit or Ctrl-D to exit.
             "interpret": self.do_interpret,
             "statement": self.do_statement,
             "opa_input": self.do_opa_input,
+            "suggest": self.do_suggest,
+            "options": self.do_suggest,
         }
     
     def default(self, line: str) -> bool:
@@ -59,15 +61,13 @@ Type :exit or Ctrl-D to exit.
         Returns:
             bool: False to continue
         """
+        # Strip any leading or trailing whitespace
+        line = line.strip()
+        
         # Check if this is a command (starts with : or .)
         if line.startswith(':'):
             cmd_name = line[1:].split()[0]
             args = line[1:].split()[1:] if len(line[1:].split()) > 1 else []
-            
-            # Special handling for help command
-            if cmd_name == "suggest" or cmd_name == "options":
-                self.show_suggestions(args[0] if args else "")
-                return False
             
             if cmd_name in self.commands:
                 return self.commands[cmd_name](' '.join(args))
@@ -159,6 +159,8 @@ Available commands:
   :interpret     Show the interpreted data from the last processed statement
   :statement     Show the structured permission statement from the last processed statement
   :opa_input     Show the OPA input from the last processed statement
+  :suggest       Show available options at the current context
+  :options       Same as :suggest - shows what you can type next
 
 You can also type permission statements directly:
   GIVE READ ACCESS TO ISSUES TAGGED = urgent
@@ -382,6 +384,66 @@ You can also type permission statements directly:
         """
         print("\nExiting...")
         return True
+    
+    def do_suggest(self, arg: str) -> bool:
+        """
+        Show available options for the current context.
+        
+        Args:
+            arg: Optional context to show suggestions for (e.g., "command", "access", "resource")
+            
+        Returns:
+            bool: False to continue
+        """
+        context = arg.strip() if arg else ""
+        
+        if not context:
+            print("\nAvailable Options:")
+            print("\nCommands:")
+            for cmd in sorted(self.commands.keys()):
+                print(f"  :{cmd}")
+                
+            print("\nStatement Components:")
+            print("  Commands: " + ", ".join(sorted(self.completer.base_commands)))
+            print("  Access Types: " + ", ".join(sorted(self.completer.access_types)))
+            print("  Resource Types: " + ", ".join(sorted(self.completer.resource_types)))
+            print("  Structural Helpers: " + ", ".join(sorted(self.completer.structural_helpers)))
+            print("  Operators: " + ", ".join(sorted(self.completer.condition_operators)))
+            
+            print("\nExample Syntax:")
+            print("  GIVE/DENY + ACCESS_TYPE + ACCESS TO + RESOURCE_TYPE + [CONDITIONS]")
+            print("  GIVE READ ACCESS TO ISSUES WITH status = Done")
+            print("  DENY WRITE ACCESS TO EMAILS TAGGED = personal")
+            
+            return False
+            
+        # Show context-specific options
+        context = context.upper()
+        if context == "COMMAND" or context == "COMMANDS":
+            print("\nAvailable Commands:")
+            print(", ".join(sorted(self.completer.base_commands)))
+            
+        elif context == "ACCESS" or context == "ACCESS_TYPES":
+            print("\nAvailable Access Types:")
+            print(", ".join(sorted(self.completer.access_types)))
+            
+        elif context == "RESOURCE" or context == "RESOURCES":
+            print("\nAvailable Resource Types:")
+            print(", ".join(sorted(self.completer.resource_types)))
+            
+        elif context == "HELPER" or context == "HELPERS":
+            print("\nAvailable Structural Helpers:")
+            print(", ".join(sorted(self.completer.structural_helpers)))
+            
+        elif context == "OPERATOR" or context == "OPERATORS":
+            print("\nAvailable Operators:")
+            print(", ".join(sorted(self.completer.condition_operators)))
+            
+        elif context in self.completer.resource_types:
+            # Show fields for this resource type
+            self.do_fields(context.lower())
+            
+        return False
 
 
 def parse_args():
