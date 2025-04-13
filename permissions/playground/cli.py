@@ -64,6 +64,11 @@ Type :exit or Ctrl-D to exit.
             cmd_name = line[1:].split()[0]
             args = line[1:].split()[1:] if len(line[1:].split()) > 1 else []
             
+            # Special handling for help command
+            if cmd_name == "suggest" or cmd_name == "options":
+                self.show_suggestions(args[0] if args else "")
+                return False
+            
             if cmd_name in self.commands:
                 return self.commands[cmd_name](' '.join(args))
             else:
@@ -343,41 +348,31 @@ You can also type permission statements directly:
         Returns:
             str: The completion option or None if no more options
         """
-        # If the default method works, use it
         try:
-            matches = self.get_matches(text, self.line_buffer)
+            # Get the buffer from readline directly
+            import readline
+            line = readline.get_line_buffer()
+            begidx = readline.get_begidx()
+            endidx = readline.get_endidx()
+            
+            # Handle different types of completions
+            if line.startswith(':'):
+                # Command completions
+                matches = self.completedefault(text, line, begidx, endidx)
+            else:
+                # Permission statement completions
+                suggestions = self.completer.complete(line, endidx)
+                matches = [s for s in suggestions if s.upper().startswith(text.upper())]
+            
+            # Return the match based on state
             if state < len(matches):
                 return matches[state]
-            else:
-                return None
+            return None
+            
         except Exception as e:
             print(f"\nError in completion: {str(e)}")
             return None
             
-    def get_matches(self, text, line):
-        """
-        Get all matches for the current text.
-        
-        Args:
-            text: The text to complete
-            line: The complete line
-            
-        Returns:
-            List[str]: All matching completions
-        """
-        # Use readline for begidx/endidx
-        import readline
-        begidx = readline.get_begidx()
-        endidx = readline.get_endidx()
-        
-        # Call the appropriate completion method
-        if line.startswith(':'):
-            return self.completedefault(text, line, begidx, endidx)
-        
-        # For permission statements
-        suggestions = self.completer.complete(line, endidx)
-        return [s for s in suggestions if s.upper().startswith(text.upper())]
-    
     def do_EOF(self, arg: str) -> bool:
         """
         Handle Ctrl-D.
