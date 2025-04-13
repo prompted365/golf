@@ -20,9 +20,12 @@ class LinearClient:
             api_key: The Linear API key
         """
         self.api_url = "https://api.linear.app/graphql"
+        self.api_key = api_key.strip().replace('"', '')  # Remove quotes if present
+        
+        # Some API clients require different header formats, so we'll try the standard way
         self.headers = {
             "Content-Type": "application/json",
-            "Authorization": api_key  # Linear expects the API key directly, without "Bearer" prefix
+            "Authorization": self.api_key  # Pass the API key directly as per Linear docs
         }
         self.http_client = httpx.AsyncClient(timeout=10.0)
     
