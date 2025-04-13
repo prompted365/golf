@@ -155,4 +155,29 @@ class Completer:
         resource_type = resource_type.upper()
         if resource_type in self.resource_fields:
             return sorted(list(self.resource_fields[resource_type]))
-        return [] 
+        return []
+        
+    def _get_fields_for_resource(self, resource_type: str) -> List[str]:
+        """
+        Get all fields for a resource type.
+        
+        Args:
+            resource_type: The resource type (case insensitive)
+            
+        Returns:
+            List[str]: List of fields for the resource type
+        """
+        resource_type = resource_type.upper()
+        
+        # First check if we have this resource in our fields
+        if resource_type in self.resource_fields:
+            return list(self.resource_fields[resource_type])
+            
+        # If not, use hardcoded defaults for common resource types
+        defaults = {
+            "ISSUES": ["id", "title", "description", "assignee", "labels", "status"],
+            "EMAILS": ["sender", "recipient", "subject", "body", "date", "attachments", "tags"],
+            "TEAMS": ["name", "id", "key", "owner"],
+        }
+        
+        return defaults.get(resource_type, []) 
