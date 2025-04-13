@@ -128,12 +128,26 @@ class OPAClient(PermissionEngine):
         # OPA expects a policy name that is different from the package path
         simple_policy_path = policy.package_name.split(".")[-1]  # Use last segment
         
+        # Log policy details for debugging
+        logger.debug(f"Adding policy to OPA. Package: {policy.package_name}, Path: {simple_policy_path}")
+        logger.debug(f"Policy content:\n{policy.policy_content}")
+        
         # Add policy to OPA
         try:
+            # Construct full URL for debugging
+            opa_policy_url = f"{self.opa_url}/v1/policies/{simple_policy_path}"
+            logger.debug(f"Sending policy to OPA URL: {opa_policy_url}")
+            
             response = await self.http_client.put(
-                f"{self.opa_url}/v1/policies/{simple_policy_path}",
-                content=policy.policy_content
+                opa_policy_url,
+                content=policy.policy_content,
+                headers={"Content-Type": "text/plain"}
             )
+            
+            # Log response details for debugging
+            logger.debug(f"OPA response status: {response.status_code}")
+            logger.debug(f"OPA response body: {response.text}")
+            
             response.raise_for_status()
             
             # Store policy locally
@@ -142,7 +156,9 @@ class OPAClient(PermissionEngine):
             return policy_id
         except httpx.HTTPStatusError as e:
             error_msg = f"HTTP error {e.response.status_code} adding policy to OPA: {str(e)}"
+            # Log detailed response for debugging
             logger.error(error_msg)
+            logger.error(f"Response body: {e.response.text}")
             raise RuntimeError(error_msg)
         except httpx.RequestError as e:
             error_msg = f"Request error adding policy to OPA: {str(e)}"
