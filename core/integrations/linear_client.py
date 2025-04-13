@@ -102,7 +102,7 @@ class LinearClient:
                           assignee: Optional[str] = None, 
                           labels: Optional[List[str]] = None, 
                           status: Optional[str] = None,
-                          priority: Optional[int] = None,
+                          priority: Optional[float] = None,
                           first: int = 100) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Fetch issues from Linear based on criteria.
@@ -122,43 +122,29 @@ class LinearClient:
             "first": first
         }
         
-        # Build filter conditions for the filter object
-        filter_parts = []
+        # Build filter object directly
+        filter_obj = {}
         
         if assignee:
-            filter_parts.append("assignee: { name: { eq: $assigneeName } }")
-            variables["assigneeName"] = assignee
+            filter_obj["assignee"] = {"name": {"eq": assignee}}
             
         if labels and len(labels) > 0:
-            filter_parts.append("labels: { name: { in: $labelNames } }")
-            variables["labelNames"] = labels
+            filter_obj["labels"] = {"name": {"in": labels}}
             
         if status:
-            filter_parts.append("state: { name: { eq: $stateName } }")
-            variables["stateName"] = status
+            filter_obj["state"] = {"name": {"eq": status}}
             
         if priority is not None:
-            filter_parts.append("priority: { eq: $priority }")
-            variables["priority"] = priority
+            filter_obj["priority"] = {"eq": float(priority)}
         
-        # Construct filter clause
-        filter_clause = ""
-        if filter_parts:
-            filter_string = ", ".join(filter_parts)
-            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
-        else:
-            filter_clause = "(first: $first)"
+        # Add filter to variables if there are any conditions
+        if filter_obj:
+            variables["filter"] = filter_obj
 
-        # GraphQL query with pagination
+        # GraphQL query with variables properly used
         query = """
-        query IssueSearch(
-            $first: Int!,
-            $assigneeName: String,
-            $labelNames: [String!],
-            $stateName: String,
-            $priority: Int
-        ) {
-            issues""" + filter_clause + """ {
+        query IssueSearch($first: Int!, $filter: IssueFilter) {
+            issues(first: $first, filter: $filter) {
                 nodes {
                     id
                     identifier
@@ -284,28 +270,20 @@ class LinearClient:
             "first": first
         }
         
-        # Build filter conditions
-        filter_parts = []
+        # Build filter object directly
+        filter_obj = {}
         
         if owner:
-            filter_parts.append("members: { user: { name: { eq: $ownerName } }, isAdmin: true }")
-            variables["ownerName"] = owner
+            filter_obj["members"] = {"user": {"name": {"eq": owner}}, "isAdmin": True}
         
-        # Construct filter clause
-        filter_clause = ""
-        if filter_parts:
-            filter_string = ", ".join(filter_parts)
-            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
-        else:
-            filter_clause = "(first: $first)"
+        # Add filter to variables if there are any conditions
+        if filter_obj:
+            variables["filter"] = filter_obj
         
-        # GraphQL query with pagination
+        # GraphQL query with variables properly used
         query = """
-        query TeamSearch(
-            $first: Int!,
-            $ownerName: String
-        ) {
-            teams""" + filter_clause + """ {
+        query TeamSearch($first: Int!, $filter: TeamFilter) {
+            teams(first: $first, filter: $filter) {
                 nodes {
                     id
                     name
@@ -410,28 +388,20 @@ class LinearClient:
             "first": first
         }
         
-        # Build filter conditions
-        filter_parts = []
+        # Build filter object directly
+        filter_obj = {}
         
         if team_id:
-            filter_parts.append("team: { id: { eq: $teamId } }")
-            variables["teamId"] = team_id
+            filter_obj["team"] = {"id": {"eq": team_id}}
         
-        # Construct filter clause
-        filter_clause = ""
-        if filter_parts:
-            filter_string = ", ".join(filter_parts)
-            filter_clause = f"(filter: {{ {filter_string} }}, first: $first)"
-        else:
-            filter_clause = "(first: $first)"
+        # Add filter to variables if there are any conditions
+        if filter_obj:
+            variables["filter"] = filter_obj
         
-        # GraphQL query with pagination
+        # GraphQL query with variables properly used
         query = """
-        query ProjectSearch(
-            $first: Int!,
-            $teamId: String
-        ) {
-            projects""" + filter_clause + """ {
+        query ProjectSearch($first: Int!, $filter: ProjectFilter) {
+            projects(first: $first, filter: $filter) {
                 nodes {
                     id
                     name
