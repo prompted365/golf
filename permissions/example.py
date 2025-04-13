@@ -18,8 +18,8 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 # Import integrations first to ensure they're registered
-from permissions.integrations import gmail, linear
 from permissions.integrations import get_integration_mappings
+from permissions.integrations import gmail_integration, linear_integration
 
 # Now we can import from permissions directly
 from permissions.engine.opa_client import OPAClient
@@ -44,6 +44,10 @@ async def main():
         parser = PermissionParser(integration_mappings=integration_mappings)
         mapper = SimpleSchemaMapper()
         policy_generator = RegoGenerator()
+        
+        # Register integrations with the mapper
+        await mapper.register_integration(gmail_integration)
+        await mapper.register_integration(linear_integration)
         
         # First check OPA health
         print("Checking OPA health...")
