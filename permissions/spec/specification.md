@@ -1,6 +1,6 @@
 # Official Low-Level Specification
 
-**Version:** 0.2.1
+**Version:** 0.3.0
 
 **Status:** Draft
 
@@ -199,6 +199,49 @@ integration_objects:
 
 **Requirement:** Each integration's resource definitions **MUST** be declared in a consistent format so that the system can correctly apply conditions.
 
+### 3.3 Field and Type Semantics
+
+Each integration MAY include the following extensions to support semantic evaluation and type-safe condition checking:
+
+- `_helper_mappings`: Maps structural helpers (e.g., `TAGGED`) to internal permission field names.
+- `_pipelines`: Defines declarative coercion pipelines (§3.3.1) for parsing and validating values of specific data types.
+
+> These mappings eliminate the need for hardcoded logic in the interpreter and enable full configuration-based extensibility.
+
+### 3.3.1 Declarative Coercion Pipelines
+
+Integration configurations MUST provide coercion pipelines for each data type requiring custom conversion logic. A pipeline consists of sequential operations that explicitly describe value transformation and validation.
+
+**Example: Gmail Integration Pipeline Configuration**
+```yaml
+_pipelines:
+  boolean:
+    - "lowercase"
+    - map_values:
+        true: ["true", "yes", "on", "1"]
+        false: ["false", "no", "off", "0"]
+    - default: false
+  
+  tags:
+    - split:
+        separator: ","
+        strip_whitespace: true
+  
+  email_address:
+    - "validate_email_format"
+```
+
+**Pipeline Operation Details:**
+| Operation               | Description                                                        |
+|-------------------------|--------------------------------------------------------------------|
+| `"lowercase"`           | Converts input string to lowercase.                                |
+| `map_values`            | Maps listed input aliases to canonical boolean or enum outputs.    |
+| `split`                 | Splits input string into a list based on the defined separator.    |
+| `"validate_email_format"`| Checks input string against standard email format (RFC 5322).     |
+| `default`               | Defines fallback output if no prior pipeline steps succeed.        |
+
+Additional custom operations MAY be introduced as required by specific integrations but MUST be documented clearly within the integration's configuration.
+
 ---
 
 ## 4. **Language Specification**
@@ -254,6 +297,8 @@ Implementations of the parser module MUST:
 - Be modular: each component (tokenizer, interpreter, builder) MUST be replaceable.
 - Perform field resolution and type inference using integration schema mappings (from §3.2).
 - Interpreter implementations MUST NOT hardcode field-type associations or semantic field mappings.
+- All type conversions and data validations MUST be delegated exclusively to the Declarative Coercion Engine (§4.4.3).
+- Data type transformations MUST follow the declarative pipelines defined in integration configurations (§3.3.1).
 
 #### 4.4.2 Asynchronous Support
 
@@ -263,6 +308,16 @@ The parser's main entrypoint MAY be implemented as an `async def parse_statement
   - Hybrid or AI-based natural language parsing with external APIs
 
 Implementations SHOULD keep this method synchronous unless such I/O operations are needed.
+
+#### 4.4.3 Declarative Coercion Engine
+
+Implementations MUST provide a centralized **Declarative Coercion Engine** responsible for:
+- Executing data-type conversion based on declarative pipeline definitions (§3.3.1).
+- Merging pipeline configurations from all integrations at runtime.
+- Providing standard default pipelines for common data types (`boolean`, `number`, `tags`, `email_address`) to ensure sensible baseline behavior.
+- Clearly logging pipeline processing steps for debugging and auditability.
+
+The interpreter MUST NOT perform any direct data-type conversion logic outside the coercion engine.
 
 ---
 
@@ -341,6 +396,8 @@ STRUCTURED STATEMENT BUILDER MODULE
           ↓
 INTEGRATION PARAMETER MAPPING MODULE
           ↓
+DECLARATIVE COERCION ENGINE MODULE
+          ↓
 JSON POLICY GENERATOR MODULE
           ↓
 OPA POLICY EVALUATION MODULE
@@ -371,6 +428,8 @@ permissions/
 ├── integrations/
 │   ├── gmail.py
 │   └── linear.py
+|
+├── coercion_engine.py
 |
 ├── engine/
 │   ├── opa_client.py
@@ -406,5 +465,13 @@ permissions/
   - Enhanced Section 4.4.2 with detailed documentation about the optional async nature of the parser
   - Provided rationale and use cases for when async interfaces are appropriate
   - Added guidance for implementers on when to use sync vs. async methods
+- **v0.3.0 (Draft)** – Added Declarative Coercion Pipelines:
+  - Added Section 3.3 for Field and Type Semantics with extensibility mappings
+  - Added Section 3.3.1 introducing declarative pipeline definitions in integration mappings
+  - Specified required and optional pipeline operations with detailed description table
+  - Introduced Declarative Coercion Engine (Section 4.4.3) to handle all conversions centrally
+  - Updated parser module (Section 4.4.1) to delegate all conversions exclusively to the coercion engine
+  - Updated High-Level Modular Structure and Suggested File Structure to include coercion engine
+  - Provided explicit Gmail integration configuration example demonstrating pipeline definitions
 
 This concludes the normative low-level specification. All future modifications **SHOULD** update the version and document changes in this final section. 
