@@ -1,7 +1,6 @@
 """Gmail integration mappings for the permissions system."""
 
-from . import register_integration
-from ..models import DataType, ResourceType, StructuralHelper
+from ..models import DataType, ResourceType, StructuralHelper, Integration
 
 # Gmail resource definitions
 GMAIL_RESOURCES = {
@@ -100,5 +99,9 @@ GMAIL_RESOURCES = {
     }
 }
 
-# Register the Gmail integration
-register_integration("gmail", GMAIL_RESOURCES) 
+# Create and register the Gmail integration
+gmail_integration = Integration(
+    name="gmail",
+    resources=GMAIL_RESOURCES,
+    description="Google Mail API integration"
+) 
