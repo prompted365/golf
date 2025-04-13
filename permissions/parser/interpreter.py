@@ -379,8 +379,16 @@ class Interpreter(BaseInterpreter):
                 if self.schema_provider and "resource_type" in result:
                     field_type = self.schema_provider.get_field_type(current_condition["field"], result["resource_type"])
                 
+                # Default to STRING if field_type is None
+                if field_type is None:
+                    field_type = DataType.STRING  # Default to string for unknown field types
+                
                 # Coerce the value using our pipeline engine
-                converted_value = self.coercion_engine.coerce(token, field_type)
+                try:
+                    converted_value = self.coercion_engine.coerce(token, field_type)
+                except Exception as e:
+                    # If coercion fails, use the original value
+                    converted_value = token
                 
                 result["conditions"].append({
                     "field": current_condition["field"],
