@@ -1,3 +1,4 @@
+<div align="center">
 # Authed Permissions
 
 **Runtime access control layer for secure agent-to-agent interactions**
@@ -8,7 +9,7 @@
 [![PyPI Downloads](https://img.shields.io/pypi/dm/authed)](https://pypi.org/project/authed/)
 
 Authed | [Docs]()
-
+</div>
 > **Note**: Authed Permissions is now the core focus of this repository. For identity and authentication, see [Authed Identity](https://github.com/authed-dev/authed-identity).
 
 ## Overview
