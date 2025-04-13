@@ -78,6 +78,7 @@ class LinearClient:
                           assignee: Optional[str] = None, 
                           labels: Optional[List[str]] = None, 
                           status: Optional[str] = None,
+                          priority: Optional[int] = None,
                           first: int = 100) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Fetch issues from Linear based on criteria.
@@ -86,6 +87,7 @@ class LinearClient:
             assignee: Filter by assignee name
             labels: Filter by issue labels
             status: Filter by issue state name
+            priority: Filter by issue priority (1-4)
             first: Maximum number of issues to fetch
             
         Returns:
@@ -110,6 +112,10 @@ class LinearClient:
         if status:
             filter_parts.append("state: { name: { eq: $stateName } }")
             variables["stateName"] = status
+            
+        if priority is not None:
+            filter_parts.append("priority: { eq: $priority }")
+            variables["priority"] = priority
         
         # Construct filter clause
         filter_clause = ""
@@ -125,7 +131,8 @@ class LinearClient:
             $first: Int!,
             $assigneeName: String,
             $labelNames: [String!],
-            $stateName: String
+            $stateName: String,
+            $priority: Int
         ) {
             issues""" + filter_clause + """ {
                 nodes {
