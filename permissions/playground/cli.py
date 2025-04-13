@@ -48,13 +48,16 @@ Type :exit or Ctrl-D to exit.
     
     def default(self, line: str) -> bool:
         """
-        Default behavior for non-command input - process as a permission statement.
+        Process permission statements or handle custom commands.
+        
+        This method is called when the line is not recognized as a built-in command.
+        It handles both custom commands (starting with :) and permission statements.
         
         Args:
-            line: The input line
+            line: The permission statement or command
             
         Returns:
-            bool: False to continue the shell, True to exit
+            bool: False to continue
         """
         # Check if this is a command (starts with : or .)
         if line.startswith(':'):
@@ -65,38 +68,49 @@ Type :exit or Ctrl-D to exit.
                 return self.commands[cmd_name](' '.join(args))
             else:
                 print(f"Unknown command: {cmd_name}")
+                print("Type :help to see available commands.")
                 return False
         
         # Process as a permission statement
-        result = self.session.process_statement(line)
-        
-        if result.error:
-            print(f"Error: {result.error}")
-            return False
-        
-        # Display tokenization result
-        if result.tokenization:
-            print("\nTokens:")
-            print(result.tokenization.tokens)
-        
-        # Display statement result
-        if result.statement:
-            print("\nStructured Statement:")
+        print("\nProcessing statement:", line)
+        try:
+            # Process the statement
+            result = self.session.process_statement(line)
+            
+            # Show debug output
+            if result.tokenization:
+                print("Tokens:", result.tokenization.tokens)
+                
+            # Check if there was an error
+            if result.error:
+                print(f"Error: {result.error}")
+                return False
+                
+            # Print success message
+            print("\nStatement processed successfully.")
             statement = result.statement.statement
             print(f"Command: {statement.command.value}")
-            print(f"Access Types: {[access.value for access in statement.access_types]}")
-            print(f"Resource Type: {statement.resource_type.value}")
+            print(f"Access: {', '.join([access.value for access in statement.access_types])}")
+            print(f"Resource: {statement.resource_type.value}")
             
             if statement.conditions:
-                print("\nConditions:")
-                for condition in statement.conditions:
-                    print(f"  {condition.field} {condition.operator.value} {condition.value}")
-            
+                print(f"Conditions: {len(statement.conditions)}")
+                for i, condition in enumerate(statement.conditions, 1):
+                    print(f"  {i}. {condition.field} {condition.operator.value} {condition.value}")
+            else:
+                print("No conditions.")
+                
             # Display OPA input
             if result.opa_input:
                 print("\nOPA Input:")
                 print(json.dumps(result.opa_input.input, indent=2))
-        
+                
+        except Exception as e:
+            # Print detailed error
+            import traceback
+            print(f"Error processing statement: {str(e)}")
+            traceback.print_exc()
+            
         return False
     
     def do_exit(self, arg: str) -> bool:
