@@ -1,9 +1,11 @@
 """Example of applying permission middleware to Linear API client."""
 
 import asyncio
-import dotenv
+import os
+from dotenv import load_dotenv
 
-dotenv.load_dotenv()
+# Load environment variables from .env file
+load_dotenv()
 
 from core.engine.opa_client import OPAClient
 from core.mapper import SimpleSchemaMapper
@@ -16,8 +18,12 @@ from core.engine.policy_generator import RegoGenerator
 
 async def main():
     """Demonstrate how to apply middleware to Linear client."""
-    # Linear API configuration
-    linear_api_key = dotenv.get("LINEAR_API_KEY")
+    # Linear API configuration - get from environment or use placeholder
+    linear_api_key = os.environ.get("LINEAR_API_KEY")
+    if not linear_api_key:
+        print("Warning: LINEAR_API_KEY environment variable not set.")
+        print("Using placeholder. This will not work with actual API calls.")
+        linear_api_key = "placeholder_for_testing_only"
     
     # Initialize OPA client, schema mapper, and register integration
     async with OPAClient() as engine:
