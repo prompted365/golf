@@ -52,7 +52,7 @@ class PlaygroundSession:
     
     def __init__(self):
         """Initialize a new playground session."""
-        self.linear_schema = SchemaProvider("linear", LINEAR_RESOURCES)
+        self.linear_schema = SchemaProvider({"linear": LINEAR_RESOURCES})
         self.tokenizer = Tokenizer()
         self.interpreter = Interpreter(schema_provider=self.linear_schema)
         self.statement_builder = StatementBuilder()
