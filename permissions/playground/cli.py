@@ -293,6 +293,91 @@ You can also type permission statements directly:
         """
         return False
     
+    def completedefault(self, text, line, begidx, endidx):
+        """
+        Provide tab completions for permission statements.
+        
+        This method is called by the cmd module when tab is pressed.
+        It uses the Completer class to generate context-aware suggestions.
+        
+        Args:
+            text: The text to complete
+            line: The complete line
+            begidx: The beginning index of the text
+            endidx: The ending index of the text
+            
+        Returns:
+            List[str]: Completion options
+        """
+        # Check if line starts with a command
+        if line.startswith(':'):
+            # Get command name
+            cmd_name = line[1:].split()[0] if len(line) > 1 else ""
+            
+            # If we're still typing the command name, suggest command names
+            if begidx <= len(cmd_name) + 1:
+                return [cmd + " " for cmd in self.commands if cmd.startswith(text)]
+            
+            # For the :fields command, suggest resource types
+            if cmd_name == "fields" and len(line.split()) <= 2:
+                return [rt for rt in self.completer.resource_types if rt.startswith(text.upper())]
+                
+            return []
+        
+        # For permission statements, use the completer
+        suggestions = self.completer.complete(line, endidx)
+        
+        # Filter suggestions by the text being completed
+        return [s for s in suggestions if s.upper().startswith(text.upper())]
+    
+    def complete(self, text, state):
+        """
+        Return the next possible completion for 'text'.
+        
+        This overrides the default complete method to provide more control.
+        
+        Args:
+            text: The text to complete
+            state: The state of completion (0 for first match, 1 for second, etc.)
+            
+        Returns:
+            str: The completion option or None if no more options
+        """
+        # If the default method works, use it
+        try:
+            matches = self.get_matches(text, self.line_buffer)
+            if state < len(matches):
+                return matches[state]
+            else:
+                return None
+        except Exception as e:
+            print(f"\nError in completion: {str(e)}")
+            return None
+            
+    def get_matches(self, text, line):
+        """
+        Get all matches for the current text.
+        
+        Args:
+            text: The text to complete
+            line: The complete line
+            
+        Returns:
+            List[str]: All matching completions
+        """
+        # Use readline for begidx/endidx
+        import readline
+        begidx = readline.get_begidx()
+        endidx = readline.get_endidx()
+        
+        # Call the appropriate completion method
+        if line.startswith(':'):
+            return self.completedefault(text, line, begidx, endidx)
+        
+        # For permission statements
+        suggestions = self.completer.complete(line, endidx)
+        return [s for s in suggestions if s.upper().startswith(text.upper())]
+    
     def do_EOF(self, arg: str) -> bool:
         """
         Handle Ctrl-D.
