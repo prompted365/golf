@@ -12,6 +12,8 @@ from ..models import (
     LogicalOperator,
     DataType
 )
+from ..coercion_engine import CoercionEngine
+from ..integrations import get_all_pipelines
 
 class ConditionDict(TypedDict):
     """Type definition for a condition dictionary."""
@@ -173,6 +175,10 @@ class Interpreter(BaseInterpreter):
             integration_mappings: Optional dictionary of integration mappings to use if no schema_provider is provided
         """
         self.schema_provider = schema_provider or SchemaProvider(integration_mappings)
+        
+        # Initialize coercion engine with pipelines from integrations
+        pipelines = get_all_pipelines()
+        self.coercion_engine = CoercionEngine(pipelines)
     
     def interpret(self, tokens: List[str]) -> InterpretedStatement:
         """
@@ -329,12 +335,8 @@ class Interpreter(BaseInterpreter):
                 if self.schema_provider and "resource_type" in result:
                     field_type = self.schema_provider.get_field_type(current_condition["field"], result["resource_type"])
                 
-                # If no field type from schema, infer based on value
-                if field_type is None:
-                    field_type = self._infer_data_type(token)
-                
-                # Convert the value based on its type
-                converted_value = self._convert_value(token, field_type)
+                # Coerce the value using our pipeline engine
+                converted_value = self.coercion_engine.coerce(token, field_type)
                 
                 result["conditions"].append({
                     "field": current_condition["field"],
@@ -371,95 +373,16 @@ class Interpreter(BaseInterpreter):
         # Return the typed result
         return result
     
-    def _map_field_from_helper(self, helper: StructuralHelper, field_token: str, resource_type: Optional[ResourceType] = None) -> str:
+    def _map_field_from_helper(self, helper: StructuralHelper, field_token: str) -> str:
         """
-        Map a field token based on the structural helper and resource type.
+        Map a field token based on the structural helper.
         
         Args:
             helper: The structural helper
             field_token: The field token
-            resource_type: The optional resource type for schema lookup
             
         Returns:
             str: The mapped field name
         """
         # Use schema provider for mapping
-        if resource_type:
-            return self.schema_provider.map_field(helper, field_token, resource_type) or field_token.lower()
-        return field_token.lower()
-    
-    def _infer_data_type(self, value: str) -> DataType:
-        """
-        Infer the data type of a field based on its name and value.
-        
-        Uses only value-based inference since schema-based inference is handled
-        at a higher level with proper resource_type information.
-        
-        Args:
-            field: The field name
-            value: The field value
-            
-        Returns:
-            DataType: The inferred data type
-        """
-        # Use only value-based inference
-        # Boolean values
-        if value.lower() in ["true", "false", "yes", "no", "on", "off"]:
-            return DataType.BOOLEAN
-        
-        # Check if appears to be a number
-        try:
-            float(value)  # Try parsing as number
-            return DataType.NUMBER
-        except ValueError:
-            pass
-            
-        # Check if appears to be an email
-        if "@" in value and "." in value.split("@")[1]:
-            return DataType.EMAIL_ADDRESS
-            
-        # Default to string for anything else
-        return DataType.STRING
-    
-    def _convert_value(self, value: str, data_type: DataType) -> Any:
-        """
-        Convert a value string to its appropriate type based on the data type.
-        
-        Args:
-            value: The value to convert
-            data_type: The target data type
-            
-        Returns:
-            Any: The converted value
-        """
-        # Simple type conversions
-        if data_type == DataType.BOOLEAN:
-            # Basic boolean conversion
-            value_lower = value.lower()
-            if value_lower in ["true", "yes", "1", "on"]:
-                return True
-            elif value_lower in ["false", "no", "0", "off"]:
-                return False
-            return bool(value)
-            
-        elif data_type == DataType.NUMBER:
-            # Try integer first, then float
-            try:
-                return int(value)
-            except ValueError:
-                try:
-                    return float(value)
-                except ValueError:
-                    return value
-                    
-        elif data_type == DataType.TAGS:
-            # Simple comma-separated list handling
-            if isinstance(value, list):
-                return value
-            elif "," in value:
-                return [tag.strip() for tag in value.split(",")]
-            else:
-                return [value]
-                
-        # Return as string for all other types
-        return value 
+        return self.schema_provider.map_field(helper, field_token) or field_token.lower()
