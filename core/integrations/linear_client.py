@@ -2,7 +2,6 @@
 
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime
 
 import httpx
 
@@ -277,7 +276,7 @@ class LinearClient:
         filter_obj = {}
         
         if owner:
-            filter_obj["members"] = {"user": {"name": {"eq": owner}}, "isAdmin": True}
+            filter_obj["members"] = {"name": {"eq": owner}, "admin": True}
         
         # Add filter to variables if there are any conditions
         if filter_obj:
@@ -303,12 +302,10 @@ class LinearClient:
                     }
                     members {
                         nodes {
-                            user {
-                                id
-                                name
-                                email
-                            }
-                            isAdmin
+                            id
+                            name
+                            email
+                            admin
                         }
                     }
                     createdAt
@@ -340,14 +337,12 @@ class LinearClient:
                     
                     if team.get("members") and "nodes" in team["members"]:
                         for member in team["members"]["nodes"]:
-                            if member.get("user"):
-                                user = member["user"]
-                                members.append(user.get("name"))
-                                
-                                # Admin member is considered an owner
-                                if member.get("isAdmin"):
-                                    if not owner_name:  # First admin found becomes owner
-                                        owner_name = user.get("name")
+                            members.append(member.get("name"))
+                            
+                            # Admin member is considered an owner
+                            if member.get("admin"):
+                                if not owner_name:  # First admin found becomes owner
+                                    owner_name = member.get("name")
                     
                     # Extract states
                     states = []
