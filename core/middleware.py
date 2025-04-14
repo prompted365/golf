@@ -313,119 +313,128 @@ class PermissionMiddleware:
             format_hint: Optional hint about the format of results
             
         Returns:
-            Filtered results
+            Filtered results - NEVER returns None
         """
-        print(f"\n[DEBUG] Filtering results for {method_name}, resource type: {resource_type.value}")
-        
-        # Get endpoint-specific configuration
-        endpoint_key = f"{resource_type.value.lower()}.{method_name}"
-        endpoint_config = self.config.get("endpoint_configs", {}).get(endpoint_key, {})
-        
-        # Get empty result template
-        empty_result = endpoint_config.get("empty_result", None)
-        if format_hint == "tuple" and empty_result is None:
-            empty_result = ([], False)  # Default empty tuple result for paginated lists
-        
-        # Determine endpoint type
-        endpoint_type = await self.get_endpoint_type(resource_type, method_name)
-        
-        # For resource endpoints with dict results, check permission
-        if endpoint_type == "resource" and isinstance(results, dict):
-            result = await self.authorize(resource_type, action, results)
-            return results if result.allowed else empty_result
-        
-        # Handle different response formats based on configuration or auto-detection
-        response_format = format_hint or endpoint_config.get("response_format")
-        
-        if response_format is None:
-            # Auto-detect format
-            if isinstance(results, list):
-                response_format = "list"
-            elif isinstance(results, tuple) and len(results) >= 1:
-                response_format = "tuple"
-            elif isinstance(results, dict):
-                # Check if this is a dict with lists or a single resource
-                has_lists = any(isinstance(v, list) for v in results.values())
-                if has_lists:
-                    response_format = "dict_with_list"
-                else:
-                    # Check if it looks like a single resource
-                    id_fields = await self.get_id_fields(resource_type)
-                    is_resource = any(field in results for field in id_fields)
-                    response_format = "resource" if is_resource else "other"
-            else:
-                response_format = "other"
-                
-        print(f"[DEBUG] Detected response format: {response_format}")
-        
-        # Get item key for collections
-        item_key = endpoint_config.get("item_key", self.config.get("default_item_key", "id"))
-        
-        # Filter based on format
-        if response_format == "list":
-            filtered = await self._filter_list(results, resource_type, action, item_key)
-            # If all items were filtered out, return empty result
-            if not filtered and results:
-                print(f"[DEBUG] All items were filtered out, returning empty result")
-                return [] if empty_result is None else empty_result
-            return filtered
+        try:
+            print(f"[FILTER] Filtering {method_name} results for {resource_type.value}")
             
-        elif response_format == "tuple":
-            # Handle (items, metadata) format common in paginated responses
-            if len(results) >= 1 and isinstance(results[0], list):
-                filtered_items = await self._filter_list(results[0], resource_type, action, item_key)
-                
-                # If all items were filtered out but we started with items, return empty result tuple
-                if not filtered_items and results[0]:
-                    print(f"[DEBUG] All items were filtered out from tuple, returning empty tuple")
-                    return empty_result if empty_result is not None else ([], False)
-                
-                # Make sure filtered_items is never None
-                if filtered_items is None:
-                    filtered_items = []
+            # Get endpoint-specific configuration
+            endpoint_key = f"{resource_type.value.lower()}.{method_name}"
+            endpoint_config = self.config.get("endpoint_configs", {}).get(endpoint_key, {})
+            
+            # Get empty result template
+            empty_result = endpoint_config.get("empty_result", None)
+            if format_hint == "tuple" and empty_result is None:
+                empty_result = ([], False)  # Default empty tuple result for paginated lists
+            elif format_hint == "list" and empty_result is None:
+                empty_result = []  # Default empty list for list results
+            
+            # Safety check: if results is None, return appropriate empty result
+            if results is None:
+                print(f"[FILTER] Results is None for {method_name}, returning empty result")
+                return empty_result if empty_result is not None else []
+            
+            # Determine endpoint type
+            endpoint_type = await self.get_endpoint_type(resource_type, method_name)
+            
+            # For resource endpoints with dict results, check permission
+            if endpoint_type == "resource" and isinstance(results, dict):
+                result = await self.authorize(resource_type, action, results)
+                return results if result.allowed else (empty_result if empty_result is not None else {})
+            
+            # Handle different response formats based on configuration or auto-detection
+            response_format = format_hint or endpoint_config.get("response_format")
+            
+            if response_format is None:
+                # Auto-detect format
+                if isinstance(results, list):
+                    response_format = "list"
+                elif isinstance(results, tuple) and len(results) >= 1:
+                    response_format = "tuple"
+                elif isinstance(results, dict):
+                    # Check if this is a dict with lists or a single resource
+                    has_lists = any(isinstance(v, list) for v in results.values())
+                    if has_lists:
+                        response_format = "dict_with_list"
+                    else:
+                        # Check if it looks like a single resource
+                        id_fields = await self.get_id_fields(resource_type)
+                        is_resource = any(field in results for field in id_fields)
+                        response_format = "resource" if is_resource else "other"
+                else:
+                    response_format = "other"
                     
-                return (filtered_items,) + results[1:]
+            print(f"[FILTER] Detected response format: {response_format}")
+            
+            # Get item key for collections
+            item_key = endpoint_config.get("item_key", self.config.get("default_item_key", "id"))
+            
+            # Filter based on format
+            if response_format == "list":
+                filtered = await self._filter_list(results, resource_type, action, item_key)
+                # If all items were filtered out or result is None, return empty list
+                if filtered is None or (not filtered and results):
+                    print(f"[FILTER] All items were filtered out, returning empty list")
+                    return [] if empty_result is None else empty_result
+                return filtered
+                
+            elif response_format == "tuple":
+                # Handle (items, metadata) format common in paginated responses
+                if len(results) >= 1 and isinstance(results[0], list):
+                    # Process items in the first position
+                    filtered_items = await self._filter_list(results[0], resource_type, action, item_key)
+                    
+                    # Safety check for None filtered_items
+                    if filtered_items is None:
+                        filtered_items = []
+                    
+                    # Return filtered tuple with the rest of the elements preserved
+                    return (filtered_items,) + results[1:]
+                return results
+                
+            elif response_format == "dict_with_list":
+                # Map of collection configs for this endpoint
+                collections_config = endpoint_config.get("collections", {})
+                
+                # Copy the dict to avoid modifying the original
+                filtered_dict = dict(results)
+                
+                # Filter each list in the dict
+                for key, value in results.items():
+                    if isinstance(value, list):
+                        # Get item key for this specific collection if configured
+                        collection_item_key = collections_config.get(key, {}).get("item_key", item_key)
+                        
+                        # Filter the list
+                        filtered_list = await self._filter_list(value, resource_type, action, collection_item_key)
+                        
+                        # Safety check for None filtered_list
+                        if filtered_list is None:
+                            filtered_list = []
+                            
+                        filtered_dict[key] = filtered_list
+                
+                return filtered_dict
+                
+            elif response_format == "resource":
+                # Single resource
+                result = await self.authorize(resource_type, action, results)
+                return results if result.allowed else (empty_result if empty_result is not None else {})
+                
+            # Default, return as is
             return results
             
-        elif response_format == "dict_with_list":
-            # Map of collection configs for this endpoint
-            collections_config = endpoint_config.get("collections", {})
+        except Exception as e:
+            # Log the error but don't crash - return empty result based on format
+            print(f"[FILTER] Error during filtering for {method_name}: {str(e)}")
             
-            # Copy the dict to avoid modifying the original
-            filtered_dict = dict(results)
-            all_lists_filtered = True
-            
-            # Filter each list in the dict
-            for key, value in results.items():
-                if isinstance(value, list):
-                    # Get item key for this specific collection if configured
-                    collection_item_key = collections_config.get(key, {}).get("item_key", item_key)
-                    filtered_list = await self._filter_list(value, resource_type, action, collection_item_key)
-                    
-                    # Check if this list was completely filtered
-                    if filtered_list and value:
-                        all_lists_filtered = False
-                    
-                    # Make sure we never have None lists
-                    filtered_dict[key] = filtered_list if filtered_list is not None else []
-                else:
-                    # Non-list elements mean not all content was filtered
-                    all_lists_filtered = False
-            
-            # If everything was filtered out, return empty result
-            if all_lists_filtered and any(isinstance(v, list) and v for v in results.values()):
-                print(f"[DEBUG] All lists in dict were filtered out, returning empty result")
+            # Determine appropriate empty result based on detected format
+            if format_hint == "tuple":
+                return empty_result if empty_result is not None else ([], False)
+            elif format_hint == "list":
+                return empty_result if empty_result is not None else []
+            else:
                 return empty_result if empty_result is not None else {}
-            
-            return filtered_dict
-            
-        elif response_format == "resource":
-            # Single resource
-            result = await self.authorize(resource_type, action, results)
-            return results if result.allowed else empty_result
-            
-        # Default, return as is
-        return results
     
     async def _filter_list(
         self,
@@ -444,49 +453,57 @@ class PermissionMiddleware:
             item_key: Key that uniquely identifies items
             
         Returns:
-            Filtered list
+            List[Dict[str, Any]]: Filtered list - NEVER returns None
         """
-        # Safety check to prevent NoneType errors
-        if items is None:
-            print("[DEBUG] Received None instead of a list, returning empty list")
-            return []
+        try:
+            # Safety check to prevent NoneType errors
+            if items is None:
+                print("[FILTER_LIST] Received None instead of a list, returning empty list")
+                return []
+                
+            if not items:
+                return []
+                
+            filtered_items = []
+            skip_missing = self.config.get("skip_missing_properties", True)
             
-        if not items:
-            return []
+            print(f"[FILTER_LIST] Filtering {len(items)} {resource_type.value} items")
             
-        filtered_items = []
-        skip_missing = self.config.get("skip_missing_properties", True)
-        
-        print(f"\n[DEBUG] Filtering {len(items)} {resource_type.value} items")
-        print(f"[DEBUG] Resource type: {resource_type.value}, Action: {action.value}")
-        
-        for item in items:
-            if item is None:
-                print("[DEBUG] Found None item in list, skipping")
-                continue
-                
-            # Skip items without the key if configured that way
-            if item_key not in item and not skip_missing:
-                self._log_warning(f"Item missing '{item_key}'")
-                continue
-                
-            # Better debug for priority filtering
-            if resource_type == ResourceType.ISSUES and "priority" in item:
-                print(f"[DEBUG] Checking issue {item.get('identifier', '?')}: Priority {item.get('priority')}")
-                
-            # Check if this item is allowed
-            result = await self.authorize(resource_type, action, item)
+            for item in items:
+                try:
+                    if item is None:
+                        print("[FILTER_LIST] Found None item in list, skipping")
+                        continue
+                        
+                    # Skip items without the key if configured that way
+                    if item_key not in item and not skip_missing:
+                        self._log_warning(f"Item missing '{item_key}'")
+                        continue
+                    
+                    # Check if this item is allowed
+                    try:
+                        result = await self.authorize(resource_type, action, item)
+                        
+                        if result.allowed:
+                            filtered_items.append(item)
+                        else:
+                            item_id = item.get(item_key, "[unknown]")
+                            print(f"[FILTER_LIST] DENIED: {resource_type.value} with {item_key}={item_id}: {result.reason}")
+                    except Exception as auth_err:
+                        print(f"[FILTER_LIST] Error during authorization check: {str(auth_err)}")
+                        # Skip this item but continue processing others
+                        continue
+                        
+                except Exception as item_err:
+                    print(f"[FILTER_LIST] Error processing item: {str(item_err)}")
+                    continue
+                    
+            print(f"[FILTER_LIST] Filtered result: {len(filtered_items)} of {len(items)} items passed")
+            return filtered_items
             
-            if result.allowed:
-                print(f"[DEBUG] ALLOWED: {resource_type.value} with {item_key}={item.get(item_key, '[unknown]')}")
-                filtered_items.append(item)
-            else:
-                item_id = item.get(item_key, "[unknown]")
-                print(f"[DEBUG] DENIED: {resource_type.value} with {item_key}={item_id}: {result.reason}")
-                self._log_debug(f"Filtered out {resource_type.value} with {item_key}={item_id}: {result.reason}")
-                
-        print(f"[DEBUG] Filtered result: {len(filtered_items)} of {len(items)} items passed")
-        return filtered_items
+        except Exception as e:
+            print(f"[FILTER_LIST] Unexpected error filtering list: {str(e)}")
+            return []  # Always return a list, even if empty
     
     def _log_denial(self, message: str) -> None:
         """Log a permission denial based on the configured log level."""
@@ -553,13 +570,14 @@ class PermissionMiddleware:
             ) -> Callable:
                 """Create a middleware-wrapped method."""
                 debug = options.get("debug", False)
+                empty_result = options.get("empty_result", None)
                 
                 async def middleware_method(*args, **kwargs):
                     # Extract request properties from kwargs
                     properties = {k: v for k, v in kwargs.items() if v is not None}
                     
                     if debug:
-                        print(f"[DEBUG] Middleware checking request for {method_name} with properties: {properties}")
+                        print(f"[MIDDLEWARE] Starting request {method_name} with properties {properties}")
                     
                     # Pre-request check
                     proceed = await self._middleware.check_request(
@@ -572,49 +590,47 @@ class PermissionMiddleware:
                     # If explicitly denied, don't proceed
                     if proceed is False:
                         if debug:
-                            print(f"[DEBUG] Request denied by pre-request check")
+                            print(f"[MIDDLEWARE] Request {method_name} denied by pre-request check")
                         # Return appropriate empty result
-                        empty_result = options.get("empty_result", None)
-                        if debug:
-                            print(f"[DEBUG] Returning empty result: {empty_result}")
                         return empty_result
                     
                     # Call the original method
                     if debug:
-                        print(f"[DEBUG] Calling original method {method_name}")
+                        print(f"[MIDDLEWARE] Calling original method {method_name}")
                     results = await original_method(*args, **kwargs)
                     
-                    # Special handling for fetch_issues to ensure we never return None instead of a list
-                    if method_name == "fetch_issues" and isinstance(results, tuple) and len(results) >= 1:
-                        issues, *rest = results
-                        if issues is None:
-                            if debug:
-                                print(f"[DEBUG] Got None issues list, replacing with empty list")
-                            results = ([], *rest)
+                    # Very important: Handle None results from the API
+                    if results is None:
+                        if debug:
+                            print(f"[MIDDLEWARE] Original method {method_name} returned None")
+                        return empty_result
                     
-                    # Filter results
+                    # Filter results - handle None return values from filter_results
                     if debug:
-                        print(f"[DEBUG] Filtering results for {method_name}")
-                    filtered_results = await self._middleware.filter_results(
-                        results=results,
-                        resource_type=resource_type,
-                        action=action,
-                        method_name=method_name,
-                        format_hint=options.get("format_hint")
-                    )
-                    
-                    # Final safety check to ensure we never return None issues
-                    if method_name == "fetch_issues" and isinstance(filtered_results, tuple) and len(filtered_results) >= 1:
-                        issues, *rest = filtered_results
-                        if issues is None:
+                        print(f"[MIDDLEWARE] Filtering results for {method_name}")
+                        
+                    try:
+                        filtered_results = await self._middleware.filter_results(
+                            results=results,
+                            resource_type=resource_type,
+                            action=action,
+                            method_name=method_name,
+                            format_hint=options.get("format_hint")
+                        )
+                        
+                        # Critical: Handle None filtered results
+                        if filtered_results is None:
                             if debug:
-                                print(f"[DEBUG] Got None issues list after filtering, replacing with empty list")
-                            filtered_results = ([], *rest)
-                    
-                    if debug and filtered_results != results:
-                        print(f"[DEBUG] Results were filtered by middleware")
-                    
-                    return filtered_results
+                                print(f"[MIDDLEWARE] filter_results returned None for {method_name}")
+                            return empty_result
+                            
+                        return filtered_results
+                        
+                    except Exception as e:
+                        if debug:
+                            print(f"[MIDDLEWARE] Error during filtering: {str(e)}")
+                        # On error, return empty result instead of propagating the exception
+                        return empty_result
                 
                 return middleware_method
             
