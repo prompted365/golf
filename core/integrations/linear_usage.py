@@ -58,6 +58,12 @@ async def main():
             print(f"Adding permission: {statement_text}")
             statement = parser.parse_statement(statement_text)
             policy = await generator.generate_policy(statement)
+            
+            # Debug output to see the actual Rego policy being generated
+            print(f"\nGenerated Rego policy for: {statement_text}")
+            print(f"Package: {policy.package_name}")
+            print(f"Policy content:\n{policy.policy_content}")
+            
             policy_id = await engine.add_policy(policy)
             print(f"Added policy with ID: {policy_id}")
         
@@ -96,7 +102,8 @@ async def main():
                 "action": AccessType.READ,
                 "options": {
                     "format_hint": "tuple",
-                    "empty_result": ([], False)
+                    "empty_result": ([], False),
+                    "debug": True  # Enable debug mode for this method
                 }
             },
             "fetch_teams": {
@@ -126,9 +133,72 @@ async def main():
         # Create an instance of the wrapped client
         async with LinearClientWithPermissions(api_key=linear_api_key) as client:
             # The wrapped client methods now have permission checks
-            print("Fetching issues with permission checks...")
-            issues, has_more = await client.fetch_issues(priority=1)
-            print(f"Retrieved {len(issues)} issues with priority 1")
+            print("\nTrying to fetch issues with priority 3 (should be DENIED)...")
+            try:
+                result = await client.fetch_issues(priority=3)
+                
+                # Safely unpack result with None checks
+                if isinstance(result, tuple) and len(result) >= 1:
+                    issues = result[0] if result[0] is not None else []
+                    has_more = result[1] if len(result) > 1 else False
+                else:
+                    issues = []
+                    has_more = False
+                
+                # Debug output for permission enforcement
+                print(f"Retrieved {len(issues)} issues with priority 3 after permission filtering")
+                print(f"Expected: 0 issues (should be denied by permission rule)")
+                
+                if issues and len(issues) > 0:
+                    print("ERROR: Priority 3 issues were allowed despite DENY rule!")
+                    for issue in issues:
+                        if issue is None:
+                            print("  Warning: None issue found in results, skipping")
+                            continue
+                        print(f"  Issue {issue.get('identifier', 'unknown')}: Priority {issue.get('priority', 'unknown')}")
+                else:
+                    print("PASS: No priority 3 issues returned - permission policy correctly blocked them")
+                    
+            except Exception as e:
+                print(f"Error fetching priority 3 issues: {str(e)}")
+            
+            # Also try to fetch priority 1 issues which should be allowed
+            print("\nTrying to fetch priority 1 issues (should be ALLOWED)...")
+            try:
+                result1 = await client.fetch_issues(priority=1)
+                
+                # Safely unpack result with None checks
+                if isinstance(result1, tuple) and len(result1) >= 1:
+                    priority1_issues = result1[0] if result1[0] is not None else []
+                else:
+                    priority1_issues = []
+                    
+                print(f"Retrieved {len(priority1_issues)} priority 1 issues")
+                print(f"Expected: >0 issues (should be allowed by permission rule)")
+                
+                if priority1_issues and len(priority1_issues) > 0:
+                    print("PASS: Priority 1 issues were allowed as expected")
+                else:
+                    print("NOTE: No priority 1 issues found (might be OK if there are none in Linear)")
+            except Exception as e:
+                print(f"Error fetching priority 1 issues: {str(e)}")
+            
+            # Check for priority 2 issues which should be allowed by default
+            print("\nTrying to fetch priority 2 issues (should be ALLOWED)...")
+            try: 
+                result2 = await client.fetch_issues(priority=2)
+                
+                # Safely unpack result with None checks
+                if isinstance(result2, tuple) and len(result2) >= 1:
+                    priority2_issues = result2[0] if result2[0] is not None else []
+                else:
+                    priority2_issues = []
+                    
+                print(f"Retrieved {len(priority2_issues)} priority 2 issues")
+                print(f"Expected: Any number of issues (no specific rule for priority 2)")
+                
+            except Exception as e:
+                print(f"Error fetching priority 2 issues: {str(e)}")
             
             print("\nFetching teams with permission checks...")
             teams, has_more = await client.fetch_teams()
