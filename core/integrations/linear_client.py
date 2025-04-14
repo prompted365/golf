@@ -209,6 +209,11 @@ class LinearClient:
                 
                 # Transform issues to match our internal format
                 for issue in issues:
+                    # Skip None issues
+                    if issue is None:
+                        print("Warning: Received None issue in API response, skipping")
+                        continue
+                        
                     # Extract labels
                     label_list = []
                     if issue.get("labels") and "nodes" in issue["labels"]:
@@ -234,6 +239,11 @@ class LinearClient:
                     updated_date = issue.get("updatedAt")
                     due_date = issue.get("dueDate")
                     
+                    # Safely get project name
+                    project_name = None
+                    if issue.get("project"):
+                        project_name = issue["project"].get("name")
+                    
                     issues_data.append({
                         "id": issue.get("id"),
                         "identifier": issue.get("identifier"),
@@ -245,7 +255,7 @@ class LinearClient:
                         "labels": label_list,
                         "status": state_name,
                         "team": team_name,
-                        "project": issue.get("project", {}).get("name"),
+                        "project": project_name,
                         "created_date": created_date,
                         "updated_date": updated_date,
                         "due_date": due_date
