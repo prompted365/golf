@@ -137,7 +137,10 @@ class LinearClient:
             filter_obj["state"] = {"name": {"eq": status}}
             
         if priority is not None:
-            filter_obj["priority"] = {"eq": float(priority)}
+            # Make sure priority is a float for Linear's API schema
+            float_priority = float(priority)
+            print(f"[DEBUG] Converting priority {priority} ({type(priority)}) to {float_priority} ({type(float_priority)})")
+            filter_obj["priority"] = {"eq": float_priority}
         
         # Add filter to variables if there are any conditions
         if filter_obj:
