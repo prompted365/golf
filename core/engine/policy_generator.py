@@ -252,8 +252,14 @@ default {default_rule} = {default_value}
         
         # Format operator
         if operator == ConditionOperator.IS:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) == to_number({formatted_value})"
             return f"{field_path} == {formatted_value}"
         elif operator == ConditionOperator.IS_NOT:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) != to_number({formatted_value})"
             return f"{field_path} != {formatted_value}"
         elif operator == ConditionOperator.CONTAINS:
             if field_type == DataType.TAGS:
@@ -261,12 +267,24 @@ default {default_rule} = {default_value}
             else:
                 return f"contains({field_path}, {formatted_value})"
         elif operator == ConditionOperator.GREATER_THAN:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) > to_number({formatted_value})"
             return f"{field_path} > {formatted_value}"
         elif operator == ConditionOperator.LESS_THAN:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) < to_number({formatted_value})"
             return f"{field_path} < {formatted_value}"
         elif operator == ConditionOperator.GREATER_OR_EQUAL:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) >= to_number({formatted_value})"
             return f"{field_path} >= {formatted_value}"
         elif operator == ConditionOperator.LESS_OR_EQUAL:
+            # For numeric field types, use to_number() for type-safe comparison
+            if field_type == DataType.NUMBER:
+                return f"to_number({field_path}) <= to_number({formatted_value})"
             return f"{field_path} <= {formatted_value}"
         elif operator == ConditionOperator.BEFORE:
             return f"time.parse_rfc3339_ns({field_path}) < time.parse_rfc3339_ns({formatted_value})"

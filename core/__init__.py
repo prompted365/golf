@@ -57,6 +57,9 @@ from .spec import get_specification, get_version as get_spec_version
 # Coercion engine
 from .coercion_engine import CoercionEngine
 
+# Permission middleware
+from .middleware import PermissionMiddleware
+
 __all__ = [
     # Base interfaces
     "PermissionEngine",
@@ -106,6 +109,9 @@ __all__ = [
     "get_spec_version",
     
     # Coercion engine
-    "CoercionEngine"
+    "CoercionEngine",
+    
+    # Permission middleware
+    "PermissionMiddleware"
 ]
 
