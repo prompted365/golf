@@ -1,0 +1,17 @@
+include README.md
+include LICENSE
+include pyproject.toml
+graft .docs
+graft src/golf/examples
+
+# Exclude common Python bytecode files and caches
+prune **/__pycache__
+global-exclude *.py[co]
+
+# Exclude build artifacts and local env/dist files if they were accidentally included
+prune build
+prune dist
+prune .eggs
+prune *.egg-info
+prune .env
+prune .venv 

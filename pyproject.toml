@@ -1,0 +1,133 @@
+[build-system]
+requires = ["setuptools>=80.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "golf-mcp"
+version = "0.1.1"
+description = "Framework for building MCP servers"
+authors = [
+    {name = "Antoni Gmitruk", email = "antoni@golf.dev"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+dependencies = [
+    "typer>=0.15.4",
+    "rich>=14.0.0",
+    "fastmcp>=2.0.0",
+    "pydantic>=2.11.0",
+    "python-dotenv>=1.1.0",
+    "black>=24.10.0",
+    "pyjwt>=2.0.0",
+    "httpx>=0.28.1"
+]
+
+[project.optional-dependencies]
+telemetry = [
+    "opentelemetry-api>=1.33.1",
+    "opentelemetry-sdk>=1.33.1",
+    "opentelemetry-instrumentation-asgi>=0.40b0",
+    "opentelemetry-exporter-otlp-proto-http>=0.40b0",
+    "wrapt>=1.17.0"
+]
+
+[project.scripts]
+golf = "golf.cli.main:app"
+
+[project.urls]
+"Homepage" = "https://golf.dev"
+"Repository" = "https://github.com/golf-mcp/golf"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["golf*"]
+exclude = ["golf.tests*"] # Example: if you have tests inside src/golf/tests
+[tool.setuptools.package-data]
+golf = ["examples/**/*"]
+
+[tool.poetry]
+name = "golf-mcp"
+version = "0.1.0"
+description = "Framework for building MCP servers with zero boilerplate"
+authors = ["Antoni Gmitruk <antoni@golf.dev>"]
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/golf-mcp/golf"
+homepage = "https://golf.dev"
+packages = [{include = "golf", from = "src"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8" # Match requires-python
+fastmcp = ">=2.0.0"
+typer = {extras = ["all"], version = ">=0.15.4"}
+pydantic = ">=2.11.0"
+rich = ">=14.0.0"
+python-dotenv = ">=1.1.0"
+black = ">=24.10.0"
+pyjwt = ">=2.0.0"
+httpx = ">=0.28.1"
+# Optional dependencies listed separately for poetry if desired, or managed by extras
+opentelemetry-api = {version = ">=1.33.1", optional = true}
+opentelemetry-sdk = {version = ">=1.33.1", optional = true}
+opentelemetry-instrumentation-asgi = {version = ">=0.40b0", optional = true}
+opentelemetry-exporter-otlp-proto-http = {version = ">=0.40b0", optional = true}
+wrapt = {version = ">=1.17.0", optional = true}
+
+[tool.poetry.extras]
+telemetry = ["opentelemetry-api", "opentelemetry-sdk", "opentelemetry-instrumentation-asgi", "opentelemetry-exporter-otlp-proto-http", "wrapt"]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+ruff = "^0.1.0"
+mypy = "^1.6.0"
+pytest-cov = "^4.1.0"
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+select = ["E", "F", "I", "B", "C4", "C90", "UP", "N", "ANN", "SIM", "TID"]
+ignore = ["ANN101", "ANN102", "ANN401"]
+line-length = 88
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_unused_configs = true 

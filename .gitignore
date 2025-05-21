@@ -1,0 +1,9 @@
+/.docs
+/.cursor
+__pycache__/
+.pytest_cache/
+*.egg-info/
+pyrightconfig.json
+.vscode/
+.env
+dist/
