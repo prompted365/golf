@@ -129,8 +129,11 @@ Key aspects of your Golf server are configured in `golf.json`. The boilerplate p
 ```
 ## Roadmap
 
-We are actively developing Golf. Here's what's on our current roadmap:
+Here are the things we are working hard on:
 
+*   **Native OpenTelemetry implementation for tracing**
+*   **`golf deploy` command for one click deployments to Vercel, Blaxel and other providers**
+*   **Production-ready OAuth token management, to allow for persistent, encrypted token storage and client mapping**
 
 ## Documentation
 
