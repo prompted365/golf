@@ -75,50 +75,56 @@ A Golf project initialized with `golf init` will have a structure similar to thi
 ```
 
 -   **`golf.json`**: Configures server name, port, transport, telemetry, and other build settings.
--   **`tools/`**, **`resources/`**, **`prompts/`**: Contain your Python files, each defining a single component. The module docstring of each file serves as the component's description.
+-   **`tools/`**, **`resources/`**, **`prompts/`**: Contain your Python files, each defining a single component. These directories can also contain nested subdirectories to further organize your components (e.g., `tools/payments/charge.py`). The module docstring of each file serves as the component's description.
+    -   Component IDs are automatically derived from their file path. For example, `tools/hello.py` becomes `hello`, and a nested file like `tools/payments/submit.py` would become `submit-payments` (filename, followed by reversed parent directories under the main category, joined by hyphens).
 -   **`common.py`** (not shown, but can be placed in subdirectories like `tools/payments/common.py`): Used to share code (clients, models, etc.) among components in the same subdirectory.
 
 ## Example: Defining a Tool
 
-Creating a new tool is as simple as adding a Python file to the `tools/` directory. For example, `tools/greeter.py`:
+Creating a new tool is as simple as adding a Python file to the `tools/` directory. The example `tools/hello.py` in the boilerplate looks like this:
 
 ```python
-# tools/greeter.py
-"""A simple tool that greets a user."""
+# tools/hello.py
+"""Hello World tool {{project_name}}."""
+
 from pydantic import BaseModel
 
-class Input(BaseModel):
-    name: str
-
 class Output(BaseModel):
+    """Response from the hello tool."""
     message: str
 
-async def run(input: Input) -> Output:
-    """Generates a personalized greeting."""
-    return Output(message=f"Hello, {input.name}!")
+async def hello(
+    name: str = "World",
+    greeting: str = "Hello"
+) -> Output:
+    """Say hello to the given name.
+    
+    This is a simple example tool that demonstrates the basic structure
+    of a tool implementation in Golf.
+    """
+    print(f"{greeting} {name}...")
+    return Output(message=f"{greeting}, {name}!")
 
-# Designate the entry point function (optional if named 'run')
-export = run
+# Designate the entry point function
+export = hello
 ```
-Golf will automatically discover this file, parse the `Input` and `Output` Pydantic models for the schema, and register `greeter.run` as a tool named `greeter`.
+Golf will automatically discover this file. The module docstring `"""Hello World tool {{project_name}}."""` is used as the tool's description. It infers parameters from the `hello` function's signature and uses the `Output` Pydantic model for the output schema. The tool will be registered with the ID `hello`.
 
 ## Configuration (`golf.json`)
 
-Key aspects of your Golf server are configured in `golf.json`:
+Key aspects of your Golf server are configured in `golf.json`. The boilerplate provides a starting point like this:
 
 ```jsonc
 {
-  "name": "MyAgentServer",      // FastMCP instance name
-  "description": "An awesome agent built with Golf",
-  "output_dir": "dist",         // Directory for build artifacts
-  "host": "127.0.0.1",           // Server host address
-  "port": 3000,                  // Server port
-  "transport": "sse",            // 'sse', 'streamable-http', or 'stdio'
-  "opentelemetry_enabled": true, // Enable OpenTelemetry
+  "name": "{{project_name}}",          // Will be replaced with your project name
+  "description": "A Golf project", // A default description
+  "host": "127.0.0.1",               // Server host address
+  "port": 3000,                      // Server port
+  "transport": "sse",                // 'sse', 'streamable-http', or 'stdio'
+  "opentelemetry_enabled": false,    // OpenTelemetry disabled by default - we're working on this as a feature
   "opentelemetry_default_exporter": "console"
 }
 ```
-
 ## Roadmap
 
 We are actively developing Golf. Here's what's on our current roadmap:
