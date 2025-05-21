@@ -1,16 +1,18 @@
 <div align="center">
-![Golf Banner](./golf-banner.png)
-
-# Golf
-
-**Easiest framework for building MCP servers.**
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/golf-mcp/golf/pulls)
-[![Support](https://img.shields.io/badge/support-contact%20author-purple.svg)](https://github.com/golf-mcp/golf/issues)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/golf-mcp)](https://pypi.org/project/golf-mcp/)
-
-Golf | [Docs](https://docs.golf.dev)
+  <img src="./golf-banner.png" alt="Golf Banner">
+  
+  <h1>Golf</h1>
+  
+  <p><strong>Easiest framework for building MCP servers.</strong></p>
+  
+  <p>
+    <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+    <a href="https://github.com/golf-mcp/golf/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs"></a>
+    <a href="https://github.com/golf-mcp/golf/issues"><img src="https://img.shields.io/badge/support-contact%20author-purple.svg" alt="Support"></a>
+    <a href="https://pypi.org/project/golf-mcp/"><img src="https://img.shields.io/badge/downloads-package%20not%20found-orange.svg" alt="Downloads"></a>
+  </p>
+  
+  <p><a href="https://docs.golf.dev">Docs</a></p>
 </div>
 
 ## Overview
