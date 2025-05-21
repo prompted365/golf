@@ -1,1 +1,0 @@
-# Authed Permissions
