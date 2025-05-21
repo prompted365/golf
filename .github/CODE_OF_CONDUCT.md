@@ -1,4 +1,4 @@
-# Code of Conduct - authed
+# Code of Conduct - Golf
 
 ## Our Pledge
 
