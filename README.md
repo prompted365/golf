@@ -1,4 +1,5 @@
 <div align="center">
+![Golf Banner](./golf-banner.png)
 
 # Golf
 
