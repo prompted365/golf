@@ -9,11 +9,11 @@
 
 ## Reporting a Vulnerability
 
-We take the security of Authed seriously. If you believe you've found a security vulnerability, please follow these steps:
+We take the security of Golf seriously. If you believe you've found a security vulnerability, please follow these steps:
 
 1. **Do not disclose the vulnerability publicly** or to any third parties.
 
-2. **Email us directly** at security@getauthed.dev with details of the vulnerability.
+2. **Email us directly** at founders@golf.dev with details of the vulnerability.
 
 3. **Include the following information** in your report:
    - Description of the vulnerability
