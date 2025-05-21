@@ -1,117 +1,61 @@
-# {{project_name}}
+# GolfMCP Project Boilerplate
 
-A GolfMCP project that provides MCP-compatible tools, resources, and prompts.
+This directory serves as a starting template for new GolfMCP projects. Initialize a project using the `golf init <your-project-name>` command.
+## About GolfMCP
 
-## Getting Started
+GolfMCP is a Python framework designed to build MCP servers with minimal boilerplate. It allows you to define tools, resources, and prompts as simple Python files. These components are then automatically discovered and compiled into a runnable [FastMCP](https://github.com/fastmcp/fastmcp) server.
 
-This project is built with [GolfMCP](https://github.com/yourusername/golfmcp), a Python framework for building MCP servers with zero boilerplate.
+## Getting Started (After `golf init`)
 
-To start the development server with hot reload:
+Once you've initialized your new project from this boilerplate:
 
-```bash
-golf dev
-```
+1.  **Navigate to your project directory:**
+    ```bash
+    cd your-project-name
+    ```
 
-This will watch for file changes and automatically reload the server.
+2.  **Start the development server:**
+    ```bash
+    golf build dev  # For a development build
+    # or
+    golf build prod # For a production build
+    
+    golf run
+    ```
 
 ## Project Structure
 
-- `tools/` - Tool implementations (functions an LLM can call)
-- `resources/` - Resource implementations (data an LLM can read)
-- `prompts/` - Prompt templates (conversations an LLM can use)
-- `golf.json` - Configuration file with settings like telemetry and transport
+Your initialized GolfMCP project will typically have the following structure:
+
+-   `tools/`: Directory for your tool implementations (Python files defining functions an LLM can call).
+-   `resources/`: Directory for your resource implementations (Python files defining data an LLM can read).
+-   `prompts/`: Directory for your prompt templates (Python files defining reusable conversation structures).
+-   `golf.json`: The main configuration file for your project, including settings like the server name, port, and transport.
+-   `pre_build.py`: (Optional) A Python script that can be used to run custom logic before the build process begins, such as configuring authentication.
+-   `.env`: File to store environment-specific variables (e.g., API keys). This is created during `golf init`.
 
 ## Adding New Components
 
-### Tools
+To add new functionalities:
 
-To add a new tool, create a Python file in the `tools/` directory:
+-   **Tools**: Create a new `.py` file in the `tools/` directory.
+-   **Resources**: Create a new `.py` file in the `resources/` directory.
+-   **Prompts**: Create a new `.py` file in the `prompts/` directory.
 
-```python
-# tools/my_tool.py
-from pydantic import BaseModel
-from fastmcp import Context
+Each Python file should generally define a single component. A module-level docstring in the file will be used as the description for the component. See the example files (e.g., `tools/hello.py`, `resources/info.py`) provided in this boilerplate for reference.
 
-class Input(BaseModel):
-    param1: str
-    param2: int = 42
+For shared functionality within a component subdirectory (e.g., `tools/payments/common.py`), you can use a `common.py` file.
 
-class Output(BaseModel):
-    result: str
+## Documentation
 
-async def run(input: Input, ctx: Context) -> Output:
-    """Description of what my tool does."""
-    await ctx.info(f"Processing {input.param1}...")
-    return MyOutput(result=f"Processed {input.param1} with {input.param2}")
-```
+For comprehensive details on the GolfMCP framework, including component specifications, advanced configurations, CLI commands, and more, please refer to the official documentation:
 
-### Resources
+[https://docs.golf.dev](https://docs.golf.dev)
 
-To add a new resource, create a Python file in the `resources/` directory:
+---
 
-```python
-# resources/my_data.py
-resource_uri = "data://my-data"
+Happy Building! 
 
-async def run() -> dict:
-    """Description of the resource."""
-    return {
-        "title": "My Data",
-        "content": "Some valuable information"
-    }
-```
-
-### Sharing Functionality with common.py
-
-For directories with multiple related components (like `tools/payments/` or `resources/weather/`), 
-use a `common.py` file to share functionality:
-
-```python
-# tools/payments/common.py
-class PaymentClient:
-    """Shared payment client implementation."""
-    # Implementation details...
-
-# Create a shared client instance
-payment_client = PaymentClient()
-```
-
-Then import and use the shared functionality in your components:
-
-```python
-# tools/payments/charge.py
-from .common import payment_client
-
-async def run(input):
-    result = await payment_client.create_charge(...)
-    # Rest of implementation...
-```
-
-This pattern helps organize shared code and makes it easier to build and maintain your project.
-
-## Telemetry
-
-This project includes OpenTelemetry integration for tracing server requests:
-
-```json
-// golf.json
-{
-  "telemetry": true,
-  "telemetry_exporter": "console"  // or "otlp_http"
-}
-```
-
-You can configure it with environment variables:
-- `OTEL_SERVICE_NAME`: Set service name (defaults to app name)
-- `OTEL_TRACES_EXPORTER`: Exporter type ("console" or "otlp_http")
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP exporter endpoint URL
-
-## Deployment
-
-To build the project for deployment:
-
-```bash
-golf build
-```
-
-This creates a standalone FastMCP application in the `dist/` directory. 
+<div align="center">
+Made with ❤️ in San Francisco
+</div>
