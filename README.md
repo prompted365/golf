@@ -1,5 +1,5 @@
 
 
 <div align="center">
-Made with ❤️ in Warsaw, Poland and SF
+Made with ❤️ in San Francisco
 </div>
