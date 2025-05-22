@@ -136,6 +136,12 @@ Key aspects of your Golf server are configured in `golf.json`. The boilerplate p
   "opentelemetry_default_exporter": "console"
 }
 ```
+### Authentication Configuration
+
+Use `configure_auth()` in `pre_build.py` to enable OAuth login. The optional
+`redirect_uri` parameter controls where the built-in `/login` route sends users.
+It defaults to `http://localhost:5173/callback` which works with the MCP Inspector.
+
 ## Roadmap
 
 Here are the things we are working hard on:

@@ -207,7 +207,8 @@ class GolfOAuthProvider(OAuthAuthorizationServerProvider):
         """
         self.config = config
         self.storage = TokenStorage()
-        self.state_mapping: Dict[str, Dict[str, Any]] = {} # Initialize state_mapping
+        self.state_mapping: Dict[str, Dict[str, Any]] = {}  # Initialize state_mapping
+        self.default_redirect_uri: Optional[str] = None
         
         # Register default client
         self._register_default_client()
@@ -250,12 +251,15 @@ class GolfOAuthProvider(OAuthAuthorizationServerProvider):
         # after successful authentication and MCP auth code generation.
         client_redirect_uris = [
             # Common redirect URI for MCP Inspector running locally
-            "http://localhost:5173/callback", 
+            "http://localhost:5173/callback",
             "http://127.0.0.1:5173/callback",
             # A generic callback relative to the server's issuer URL, if needed by some clients
             # This assumes such a client-side endpoint exists.
             f"{self.config.issuer_url.rstrip('/') if self.config.issuer_url else 'http://localhost:3000'}/client/callback"
         ]
+
+        if self.default_redirect_uri and self.default_redirect_uri not in client_redirect_uris:
+            client_redirect_uris.insert(0, self.default_redirect_uri)
 
         default_client = OAuthClientInformationFull(
             client_id="default",

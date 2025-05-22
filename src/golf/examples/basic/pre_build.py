@@ -25,4 +25,5 @@ github_provider = ProviderConfig(
 configure_auth(
     provider=github_provider,
     required_scopes=["read:user"],  # Require read:user scope for protected endpoints
+    redirect_uri="http://localhost:5173/callback",  # Where the /login route will redirect
 )
