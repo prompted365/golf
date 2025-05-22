@@ -145,6 +145,19 @@ def build_prod(
     build_project(project_root, settings, output_dir, build_env="prod", copy_env=False)
 
 
+@app.command("chat-build")
+def chat_build_cmd(
+    output_dir: Optional[str] = typer.Option(
+        None, "--output-dir", "-o", help="Directory to output the built project"
+    )
+) -> None:
+    """Interactively configure and build the project."""
+
+    from golf.commands.chat_build import chat_build
+
+    chat_build(output_dir)
+
+
 @app.command()
 def run(
     dist_dir: Optional[str] = typer.Option(
