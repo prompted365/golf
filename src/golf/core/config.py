@@ -200,6 +200,29 @@ def _load_json_settings(path: Path, settings: Settings) -> Settings:
 
 
 def _load_toml_settings(path: Path, settings: Settings) -> Settings:
-    """Load settings from a TOML file."""
-    
-    return settings 
+    """Load settings from a TOML file.
+
+    This uses the standard ``tomllib`` module when available and falls back to
+    ``tomli`` on older Python versions. Any keys found in the file that match
+    attributes on ``settings`` are applied to the given object.
+    """
+
+    try:
+        try:
+            import tomllib  # Python 3.11+
+        except ModuleNotFoundError:  # pragma: no cover - Python <3.11
+            import tomli as tomllib
+
+        with open(path, "rb") as f:
+            config_data = tomllib.load(f)
+
+        for key, value in config_data.items():
+            if hasattr(settings, key):
+                setattr(settings, key, value)
+
+        return settings
+    except Exception as e:  # pragma: no cover - defensive
+        console.print(
+            f"[bold red]Error loading TOML config from {path}: {e}[/bold red]"
+        )
+        return settings
