@@ -17,12 +17,13 @@ class AuthConfig:
     """Configuration for OAuth authentication in GolfMCP."""
     
     def __init__(
-        self, 
+        self,
         provider_config: ProviderConfig,
         required_scopes: List[str],
         callback_path: str = "/auth/callback",
         login_path: str = "/login",
-        error_path: str = "/auth-error"
+        error_path: str = "/auth-error",
+        redirect_uri: str = "http://localhost:5173/callback",
     ):
         """Initialize authentication configuration.
         
@@ -38,9 +39,12 @@ class AuthConfig:
         self.callback_path = callback_path
         self.login_path = login_path
         self.error_path = error_path
+        self.redirect_uri = redirect_uri
         
         # Create the OAuth provider
         self.provider = GolfOAuthProvider(provider_config)
+        # Make the configured redirect URI available to the provider
+        self.provider.default_redirect_uri = redirect_uri
         
         # Create auth settings for FastMCP
         self.auth_settings = AuthSettings(
@@ -61,6 +65,7 @@ def configure_auth(
     provider=None,
     required_scopes: Optional[List[str]] = None,
     callback_path: str = "/auth/callback",
+    redirect_uri: str = "http://localhost:5173/callback",
 ) -> None:
     """Configure authentication for a GolfMCP server.
     
@@ -71,6 +76,7 @@ def configure_auth(
         provider: Configuration for the OAuth provider (old parameter name, deprecated)
         required_scopes: Scopes required for authentication
         callback_path: Path for the OAuth callback
+        redirect_uri: Redirect URI used for the default login route
         public_paths: List of paths that don't require authentication (deprecated, no longer used)
     """
     global _auth_config
@@ -84,18 +90,23 @@ def configure_auth(
     _auth_config = AuthConfig(
         provider_config=provider_config,
         required_scopes=required_scopes or provider_config.scopes,
-        callback_path=callback_path
+        callback_path=callback_path,
+        redirect_uri=redirect_uri,
     )
 
-def get_auth_config() -> Tuple[Optional[ProviderConfig], List[str]]:
+def get_auth_config() -> Tuple[Optional[ProviderConfig], List[str], str]:
     """Get the current authentication configuration.
     
     Returns:
-        Tuple of (provider_config, required_scopes)
+        Tuple of (provider_config, required_scopes, redirect_uri)
     """
     if _auth_config:
-        return _auth_config.provider_config, _auth_config.required_scopes
-    return None, []
+        return (
+            _auth_config.provider_config,
+            _auth_config.required_scopes,
+            _auth_config.redirect_uri,
+        )
+    return None, [], "http://localhost:5173/callback"
 
 def create_auth_provider() -> Optional[GolfOAuthProvider]:
     """Create an OAuth provider from the configured provider settings.

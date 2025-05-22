@@ -11,7 +11,7 @@ def generate_auth_code(server_name: str, host: str = "127.0.0.1", port: int = 30
     """Generate code for setting up authentication in the FastMCP app.
     This code string will be injected into the generated server.py and executed at its runtime.
     """
-    original_provider_config, required_scopes_from_config = get_auth_config()
+    original_provider_config, required_scopes_from_config, _ = get_auth_config()
     
     if not original_provider_config:
         # If no auth config from pre_build.py, just generate basic FastMCP instantiation
@@ -118,7 +118,7 @@ def generate_auth_routes() -> str:
     """Generate code for OAuth routes in the FastMCP app.
     These routes are added to the FastMCP instance (`mcp`) created by `generate_auth_code`.
     """
-    provider_config, _ = get_auth_config() # Used to check if auth is enabled generally
+    provider_config, _, redirect_uri = get_auth_config() # Used to check if auth is enabled generally
     if not provider_config:
         return ""
         
@@ -135,7 +135,7 @@ def generate_auth_routes() -> str:
         "async def login(request):",
         "    from starlette.responses import RedirectResponse",
         "    import urllib.parse",
-        "    default_redirect_uri = urllib.parse.quote_plus(\"http://localhost:5173/callback\")",
+        f"    default_redirect_uri = urllib.parse.quote_plus({repr(redirect_uri)})",
         "    authorize_url = f\"/mcp/auth/authorize?client_id=default&response_type=code&redirect_uri={default_redirect_uri}\"",
         "    return RedirectResponse(authorize_url)",
         "",
