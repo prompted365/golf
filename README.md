@@ -52,6 +52,15 @@ golf run
 ```
 This will start the FastMCP server, typically on `http://127.0.0.1:3000` (configurable in `golf.json`). The `dev` command includes hot reloading, so changes to your component files will automatically restart the server.
 
+### 4. Interactive Build
+
+If you'd like to configure build settings interactively, run:
+
+```bash
+golf chat-build
+```
+This command will prompt you for options such as project name, host, and port before building.
+
 That's it! Your Golf server is running and ready for integration.
 
 ## Basic Project Structure
